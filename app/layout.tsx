@@ -27,7 +27,11 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <Toaster />
+      <Toaster
+       position="top-center"
+       richColors
+       duration={3000}
+       />
     <html lang="en">
      
       <body

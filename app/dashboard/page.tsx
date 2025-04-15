@@ -8,7 +8,8 @@ import { FaWhatsapp } from "react-icons/fa";
 import { FaAmazon } from "react-icons/fa";
 import { SiSwiggy } from "react-icons/si";
 import { FaQuestion } from "react-icons/fa";
-import { Check } from "lucide-react";
+import { Check, Copy, PhoneIcon } from "lucide-react";
+import { ArrowRightCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -18,6 +19,7 @@ import {
   InputOTPSlot,
   InputOTPSeparator
 } from "@/components/ui/input-otp";
+import { toast } from "sonner";
 
 // Define service options outside the component for better performance
 const serviceOptions = [
@@ -120,7 +122,8 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [showResult, setShowResult] = useState(false);
   const [balance, setBalance] = useState(0);
-  const [copyStatus, setCopyStatus] = useState("Copy");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
+  const [copyCodeStatus, setCopyCodeStatus] = useState<"idle" | "copied">("idle");
   
   // SMS code and status state
   const [smsCode, setSmsCode] = useState("");
@@ -147,8 +150,41 @@ export default function DashboardPage() {
         }
         const balanceData = await balanceResponse.json();
         setBalance(balanceData.balance);
+        
+        // Show a warning toast if balance is low
+        if (balanceData.balance < 10) {
+          toast.warning("Your balance is low", {
+            description: "Please recharge to continue using the service"
+          });
+        }
+        
+        // Check for active phone numbers
+        const activeResponse = await fetch('/api/sms/active');
+        if (activeResponse.ok) {
+          const activeData = await activeResponse.json();
+          if (activeData.success && activeData.activation) {
+            // Set the active phone number
+            setPhoneNumber(activeData.activation.phone_number);
+            setActivationId(activeData.activation.activation_id);
+            setSelectedService(activeData.activation.service);
+            setShowResult(true);
+            
+            // If there's a code, display it
+            if (activeData.activation.sms_code) {
+              setSmsCode(activeData.activation.sms_code);
+              setCodeReceived(true);
+            } else {
+              // Start polling for SMS code
+              setIsPolling(true);
+              toast.info("Waiting for SMS code", { 
+                description: "We'll notify you when it arrives" 
+              });
+            }
+          }
+        }
       } catch (err) {
         console.error('Error fetching user data:', err);
+        toast.error("Failed to load user data");
       }
     };
 
@@ -172,6 +208,7 @@ export default function DashboardPage() {
           console.error(`Stopping SMS polling after ${MAX_CONSECUTIVE_ERRORS} consecutive errors`);
           setIsPolling(false);
           setError(`Failed to check for SMS after ${MAX_CONSECUTIVE_ERRORS} attempts. Please try again.`);
+          toast.error(`Failed to check for SMS. Please try again.`);
           return;
         }
         
@@ -179,6 +216,7 @@ export default function DashboardPage() {
         if (response.status === 404) {
           setIsPolling(false);
           setError("The number activation was not found. It may have expired.");
+          toast.error("Number activation not found. It may have expired.");
           return;
         }
         
@@ -200,6 +238,9 @@ export default function DashboardPage() {
         setSmsCode(data.code);
         setIsPolling(false);
         setCodeReceived(true);
+        toast.success("SMS code received!", {
+          description: "Your verification code has arrived"
+        });
       }
       
       // If the activation was cancelled, stop polling
@@ -241,6 +282,7 @@ export default function DashboardPage() {
   const getPhoneNumber = async () => {
     if (!selectedService) {
       setError("Please select a service first");
+      toast.error("Please select a service first");
       return;
     }
 
@@ -259,6 +301,7 @@ export default function DashboardPage() {
       
       if (data.error) {
         setError(data.error);
+        toast.error(data.error);
         return;
       }
       
@@ -269,9 +312,13 @@ export default function DashboardPage() {
       
       // Start polling for SMS code
       setIsPolling(true);
+      
+      // Show success toast
+      toast.success("Phone number obtained successfully");
     } catch (error) {
       console.error('Error:', error);
       setError('Failed to get a number. Please try again.');
+      toast.error('Failed to get a number. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -280,6 +327,7 @@ export default function DashboardPage() {
   const cancelActivation = async () => {
     if (!activationId) {
       setError("No active number to cancel");
+      toast.error("No active number to cancel");
       return;
     }
 
@@ -300,6 +348,7 @@ export default function DashboardPage() {
       
       if (data.error) {
         setError(data.error);
+        toast.error(data.error);
         return;
       }
       
@@ -311,6 +360,9 @@ export default function DashboardPage() {
       setSmsStatus("");
       setPollCount(0);
       setCodeReceived(false);
+      
+      // Show success toast
+      toast.success("Phone number cancelled successfully");
       
       // Refetch balance as it might have changed
       try {
@@ -326,21 +378,24 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error cancelling activation:', error);
       setError('Failed to cancel. Please try again.');
+      toast.error('Failed to cancel. Please try again.');
     } finally {
       setCancelLoading(false);
     }
   };
 
-  const handleCopy = (text: string) => {
+  const handleCopy = (text: string, setCopyStateFunc: React.Dispatch<React.SetStateAction<"idle" | "copied">>) => {
     navigator.clipboard.writeText(text)
       .then(() => {
-        setCopyStatus("Copied!");
+        setCopyStateFunc("copied");
         setTimeout(() => {
-          setCopyStatus("Copy");
+          setCopyStateFunc("idle");
         }, 2000);
+        toast.success("Copied to clipboard");
       })
       .catch(err => {
         console.error('Failed to copy: ', err);
+        toast.error("Failed to copy text");
       });
   };
 
@@ -384,7 +439,7 @@ export default function DashboardPage() {
     }
 
     return (
-      <div className="mt-4 sm:mt-6">
+      <div className="mt-2 sm:mt-20">
         <div className={`p-3 sm:p-5 rounded-md border-2 ${codeReceived ? 'bg-green-100 border-green-400 shadow-md animate-pulse' : ''}`}>
           <div className="flex items-center mb-2 sm:mb-3">
             <div className="rounded-full bg-green-500 p-1">
@@ -427,11 +482,22 @@ export default function DashboardPage() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => handleCopy(smsCode)}
-                className="bg-green-50 text-green-700 border-2 border-green-400 hover:bg-green-100 
-                hover:text-green-800 font-medium px-3 sm:px-6 py-1 sm:py-2 text-sm shadow-sm"
+                onClick={() => handleCopy(smsCode, setCopyCodeStatus)}
+                className={`bg-green-50 text-green-700 border-2 border-green-400 hover:bg-green-100 
+                hover:text-green-800 font-medium px-3 sm:px-6 py-1 sm:py-2 text-sm shadow-sm transition-colors
+                ${copyCodeStatus === "copied" ? "bg-green-200" : ""}`}
               >
-                Copy Code
+                {copyCodeStatus === "copied" ? (
+                  <span className="flex items-center">
+                    <Check className="h-4 w-4 mr-1" />
+                    Copied
+                  </span>
+                ) : (
+                  <span className="flex items-center">
+                    <Copy className="h-4 w-4 mr-1" />
+                    Copy Code
+                  </span>
+                )}
               </Button>
             </div>
           </div>
@@ -471,7 +537,18 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto p-2 sm:p-4 space-y-4 sm:space-y-6 mt-4 sm:mt-10 max-w-xl">
       <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
-        <h2 className="text-lg sm:text-xl font-bold mb-2 sm:mb-4">Get a Virtual Phone Number</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg sm:text-xl font-bold">Get a Virtual Phone Number</h2>
+          <Button 
+            variant="outline"
+            size="sm"
+            onClick={() => router.push('/history')}
+            className="flex items-center gap-1 text-xs sm:text-sm"
+          >
+            <PhoneIcon className="h-3.5 w-3.5" />
+            View History
+          </Button>
+        </div>
         <p className="mb-3 sm:mb-4 text-sm sm:text-base">Your Balance: {balance} ₹</p>
         
         <div className="flex flex-col gap-3 sm:gap-4">
@@ -509,12 +586,26 @@ export default function DashboardPage() {
         {showResult && (
           <div className="mt-4 sm:mt-5">
             <div className="p-3 sm:p-4 border rounded-md">
-              <h3 className="font-medium mb-2 text-sm sm:text-base">Your temporary phone number:</h3>
+              <h3 className="font-medium mb-2 text-sm sm:text-base">Virtual Phone Number:</h3>
               <div className="flex items-center justify-between">
                 <p className="text-base sm:text-lg font-bold break-all">{phoneNumber}</p>
-                <Button variant="outline" size="sm" onClick={() => handleCopy(phoneNumber)}
-                  className="ml-2 whitespace-nowrap">
-                  {copyStatus}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleCopy(phoneNumber, setCopyStatus)}
+                  className={`ml-2 whitespace-nowrap transition-colors ${copyStatus === "copied" ? "border-green-500 text-green-600 bg-green-50" : ""}`}
+                >
+                  {copyStatus === "copied" ? (
+                    <span className="flex items-center">
+                      <Check className="h-4 w-4 mr-1" />
+                      Copied
+                    </span>
+                  ) : (
+                    <span className="flex items-center">
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy
+                    </span>
+                  )}
                 </Button>
               </div>
               <div className="mt-1 text-xs text-gray-500 break-all">
@@ -523,7 +614,7 @@ export default function DashboardPage() {
               
               {renderSmsStatus()}
               
-              <div className="flex justify-end mt-4">
+              <div className="flex justify-end mt-4 text-white">
                 <Button 
                   variant="destructive" 
                   size="sm" 
