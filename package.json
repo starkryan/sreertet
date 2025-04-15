@@ -2,12 +2,14 @@
   "name": "imuid",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+ "scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "next lint",
+  "vercel-build": "npm install --legacy-peer-deps && npm run build"
   },
+
   "dependencies": {
     "@clerk/nextjs": "^6.15.0",
     "@hookform/resolvers": "^5.0.1",
