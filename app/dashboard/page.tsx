@@ -185,6 +185,11 @@ export default function DashboardPage() {
 
   // Error handling state
   const [errorCount, setErrorCount] = useState(0);
+  
+  // Activation time tracking
+  const [activationTime, setActivationTime] = useState<Date | null>(null);
+  const [cancelAvailable, setCancelAvailable] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState(120); // 2 minutes in seconds
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -363,6 +368,7 @@ export default function DashboardPage() {
     setPollCount(0);
     setErrorCount(0);
     setCodeReceived(false);
+    setCancelAvailable(false);
     setLoading(true);
     
     try {
@@ -379,6 +385,10 @@ export default function DashboardPage() {
       setPhoneNumber(data.phoneNumber);
       setActivationId(data.activationId);
       setShowResult(true);
+      
+      // Set activation time to current time
+      const now = new Date();
+      setActivationTime(now);
       
       // Update balance immediately to reflect the purchase
       setBalance(prevBalance => prevBalance - selectedServicePrice);
@@ -404,6 +414,22 @@ export default function DashboardPage() {
       return;
     }
 
+    // Check if 2 minutes have passed since activation
+    if (activationTime) {
+      const now = new Date();
+      const elapsedTimeMs = now.getTime() - activationTime.getTime();
+      const twoMinutesMs = 2 * 60 * 1000;
+      
+      if (elapsedTimeMs < twoMinutesMs) {
+        const remainingSeconds = Math.ceil((twoMinutesMs - elapsedTimeMs) / 1000);
+        setError(`Early cancellation denied. Please wait ${remainingSeconds} second${remainingSeconds !== 1 ? 's' : ''} to cancel.`);
+        toast.error(`Early cancellation denied`, {
+          description: `You can cancel after 2 minutes (${remainingSeconds} second${remainingSeconds !== 1 ? 's' : ''} remaining)`
+        });
+        return;
+      }
+    }
+
     // Stop polling when cancelling
     setIsPolling(false);
     setCancelLoading(true);
@@ -420,6 +446,17 @@ export default function DashboardPage() {
       const data = await response.json();
       
       if (data.error) {
+        // Handle EARLY_CANCEL_DENIED error specifically
+        if (data.error.includes("EARLY_CANCEL_DENIED") || data.error.toLowerCase().includes("early cancel")) {
+          setError("Early cancellation denied. You can cancel after 2 minutes.");
+          toast.error("Early cancellation denied", {
+            description: "You can cancel this number after 2 minutes"
+          });
+          setIsPolling(true); // Resume polling
+          setCancelLoading(false);
+          return;
+        }
+        
         setError(data.error);
         toast.error(data.error);
         return;
@@ -433,6 +470,8 @@ export default function DashboardPage() {
       setSmsStatus("");
       setPollCount(0);
       setCodeReceived(false);
+      setActivationTime(null);
+      setCancelAvailable(false);
       
       // Show success toast
       toast.success("Phone number cancelled successfully");
@@ -607,6 +646,50 @@ export default function DashboardPage() {
     );
   };
 
+  // Add useEffect to update cancel availability after 2 minutes and show countdown
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    let countdownTimer: NodeJS.Timeout | null = null;
+    
+    if (activationTime && !cancelAvailable) {
+      const now = new Date();
+      const elapsedTimeMs = now.getTime() - activationTime.getTime();
+      const twoMinutesMs = 2 * 60 * 1000;
+      
+      if (elapsedTimeMs >= twoMinutesMs) {
+        setCancelAvailable(true);
+        setRemainingSeconds(0);
+      } else {
+        // Calculate initial remaining seconds
+        const initialRemainingSeconds = Math.ceil((twoMinutesMs - elapsedTimeMs) / 1000);
+        setRemainingSeconds(initialRemainingSeconds);
+        
+        // Set a timer to enable cancel button after remaining time
+        timer = setTimeout(() => {
+          setCancelAvailable(true);
+          setRemainingSeconds(0);
+          toast.info("Cancellation is now available for this number");
+        }, twoMinutesMs - elapsedTimeMs);
+        
+        // Set a countdown timer that updates every second
+        countdownTimer = setInterval(() => {
+          setRemainingSeconds(prev => {
+            if (prev <= 1) {
+              if (countdownTimer) clearInterval(countdownTimer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    }
+    
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (countdownTimer) clearInterval(countdownTimer);
+    };
+  }, [activationTime, cancelAvailable]);
+
   return (
     <div className="container mx-auto p-2 sm:p-4 space-y-4 sm:space-y-6 mt-4 sm:mt-10 max-w-xl">
       <div className="bg-white dark:bg-gray-800 p-3 sm:p-6 rounded-lg shadow-md">
@@ -700,6 +783,24 @@ export default function DashboardPage() {
               
               {renderSmsStatus()}
               
+              {/* Add timer display when cancellation is not available */}
+              {!cancelAvailable && showResult && !codeReceived && remainingSeconds > 0 && (
+                <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-yellow-700">Cancellation available in:</span>
+                    <span className="font-mono font-bold text-sm text-yellow-800 bg-yellow-100 px-2 py-1 rounded">
+                      {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                  <div className="w-full bg-yellow-200 rounded-full h-1.5 mt-2">
+                    <div 
+                      className="bg-yellow-500 h-1.5 rounded-full transition-all duration-1000 ease-linear" 
+                      style={{ width: `${(remainingSeconds / 120) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex flex-col sm:flex-row sm:justify-between mt-4 gap-2">
                 {/* Add Repeat button when SMS code is received */}
                 {codeReceived && (
@@ -718,6 +819,8 @@ export default function DashboardPage() {
                       setPollCount(0);
                       setCodeReceived(false);
                       setIsPolling(false);
+                      setActivationTime(null);
+                      setCancelAvailable(false);
                       // Keep the same service selected
                       setSelectedService(currentService);
                       // Small delay to avoid button flash
@@ -736,14 +839,19 @@ export default function DashboardPage() {
                     variant="destructive" 
                     size="sm" 
                     onClick={cancelActivation}
-                    disabled={cancelLoading || codeReceived}
+                    disabled={cancelLoading || codeReceived || !cancelAvailable}
                     className={`w-full sm:w-auto ${codeReceived ? "opacity-50 cursor-not-allowed" : ""}`}
-                    title={codeReceived ? "Cancel not available after SMS is received" : "Cancel this number"}
+                    title={codeReceived ? "Cancel not available after SMS is received" : !cancelAvailable ? `You can cancel after 2 minutes (${remainingSeconds}s remaining)` : "Cancel this number"}
                   >
                     {cancelLoading ? (
                       <span className="flex items-center gap-2">
                         <Spinner variant="circle" className="h-4 w-4" />
                         Cancelling...
+                      </span>
+                    ) : !cancelAvailable ? (
+                      <span className="flex items-center gap-1">
+                        <span className="animate-pulse">⏱️</span> 
+                        {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
                       </span>
                     ) : "Cancel Number"}
                   </Button>

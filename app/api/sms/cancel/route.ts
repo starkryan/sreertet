@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     // Get the activation details first to determine the service
     const { data: activationData, error: fetchError } = await supabase
       .from('phone_activations')
-      .select('service, is_active, status')
+      .select('service, is_active, status, created_at')
       .eq('activation_id', activationId)
       .eq('user_id', supabaseUserId)
       .single();
@@ -80,6 +80,21 @@ export async function POST(request: NextRequest) {
     // If activation is already cancelled or not active, don't proceed
     if (!activationData.is_active || activationData.status === 'cancelled') {
       return NextResponse.json({ error: 'Activation is already cancelled or inactive' }, { status: 400 });
+    }
+
+    // Check if 2 minutes have passed since activation
+    const now = new Date();
+    const createdAt = new Date(activationData.created_at);
+    const elapsedTimeMs = now.getTime() - createdAt.getTime();
+    const twoMinutesMs = 2 * 60 * 1000;
+
+    if (elapsedTimeMs < twoMinutesMs) {
+      const remainingSeconds = Math.ceil((twoMinutesMs - elapsedTimeMs) / 1000);
+      return NextResponse.json({ 
+        error: 'EARLY_CANCEL_DENIED', 
+        message: `Early cancellation denied. Please wait ${remainingSeconds} seconds.`,
+        remainingSeconds
+      }, { status: 429 }); // Too Many Requests is appropriate for rate limiting
     }
 
     const apiKey = process.env.GRIZZLY_SMS_API_KEY;
@@ -156,17 +171,30 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Handle potential errors
+    // Handle potential errors from external API
     if (data === 'BAD_KEY') {
       return NextResponse.json({ error: 'Invalid API key' }, { status: 400 });
     }
     if (data === 'NO_ACTIVATION') {
       return NextResponse.json({ error: 'Activation not found on provider' }, { status: 404 });
     }
+    if (data && data.toString().includes('EARLY_CANCEL')) {
+      return NextResponse.json({ 
+        error: 'EARLY_CANCEL_DENIED', 
+        message: 'Early cancellation denied by the provider. Please wait 2 minutes before cancelling.' 
+      }, { status: 429 });
+    }
     
     return NextResponse.json({ error: `Unexpected response: ${data}` }, { status: 500 });
   } catch (error) {
     console.error('Error cancelling activation:', error);
+    // Check if it's an API error with EARLY_CANCEL in response
+    if (error instanceof Error && error.message.includes('EARLY_CANCEL')) {
+      return NextResponse.json({ 
+        error: 'EARLY_CANCEL_DENIED', 
+        message: 'Early cancellation denied by the provider. Please wait 2 minutes before cancelling.' 
+      }, { status: 429 });
+    }
     return NextResponse.json({ error: 'Failed to cancel activation' }, { status: 500 });
   }
 } 
