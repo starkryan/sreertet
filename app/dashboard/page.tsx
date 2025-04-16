@@ -9,7 +9,6 @@ import { FaAmazon } from "react-icons/fa";
 import { SiSwiggy } from "react-icons/si";
 import { FaQuestion } from "react-icons/fa";
 import { Check, Copy, PhoneIcon } from "lucide-react";
-import { ArrowRightCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -20,90 +19,142 @@ import {
   InputOTPSeparator
 } from "@/components/ui/input-otp";
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
+const variants = ['default', 'circle', 'pinwheel', 'circle-filled', 'ellipsis', 'ring', 'bars', 'infinite'];
+
 
 // Define service options outside the component for better performance
 const serviceOptions = [
   { 
     value: 'go', 
+    price: 25,
     label: (
-      <div className="flex items-center gap-2">
-        <FcGoogle className="h-4 w-4" />
-        <span>Google, Gmail, Youtube</span>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <FcGoogle className="h-4 w-4" />
+          <span>Google, Gmail, Youtube</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹25</span>
       </div>
     )
   },
   { 
     value: 'tg', 
+    price: 50,
     label: (
-      <div className="flex items-center gap-2">
-        <FaTelegramPlane className="h-4 w-4 text-blue-500" />
-        <span>Telegram</span>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <FaTelegramPlane className="h-4 w-4 text-blue-500" />
+          <span>Telegram</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹50</span>
       </div>  
     )
   },
   { 
     value: 'wa', 
+    price: 100,
     label: (
-      <div className="flex items-center gap-2">
-        <FaWhatsapp className="h-4 w-4 text-green-500" />
-        <span>WhatsApp</span>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <FaWhatsapp className="h-4 w-4 text-green-500" />
+          <span>WhatsApp</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹100</span>
       </div>
     )
   },
   { 
     value: 'ig', 
+    price: 12,
     label: (
-      <div className="flex items-center gap-2">
-        <FaInstagram className="h-4 w-4 text-pink-500" />
-        <span>Instagram</span>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <FaInstagram className="h-4 w-4 text-pink-500" />
+          <span>Instagram</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹12</span>
       </div>  
     )
   },
   { 
     value: 'jx', 
+    price: 22,
     label: (
-      <div className="flex items-center gap-2">
-        <SiSwiggy className="h-4 w-4 text-orange-500" />
-        <span>Swiggy</span>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <SiSwiggy className="h-4 w-4 text-orange-500" />
+          <span>Swiggy</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹22</span>
       </div>  
     )
   },
   { 
     value: 'am', 
+    price: 20,
     label: (
-      <div className="flex items-center gap-2">
-        <FaAmazon className="h-4 w-4 text-orange-500" />
-        <span>Amazon</span>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <FaAmazon className="h-4 w-4 text-orange-500" />
+          <span>Amazon</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹20</span>
       </div>  
     )
   },
   { 
     value: 'wmh', 
+    price: 21,
     label: (
-      <div className="flex items-center gap-2">
-        <FaQuestion className="h-4 w-4 text-orange-500" />
-        <span>Winmatch</span>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <FaQuestion className="h-4 w-4 text-orange-500" />
+          <span>Winmatch</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹21</span>
       </div>  
     )
   },
   { 
     value: 'sn', 
+    price: 24,
     label: (
-      <div className="flex items-center gap-2">
-        <FaQuestion className="h-4 w-4 text-orange-500" />
-        <span>OLX</span>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <FaQuestion className="h-4 w-4 text-orange-500" />
+          <span>OLX</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹24</span>
       </div>  
     )
   },
   { 
     value: 'zpt', 
+    price: 25,
     label: (
-      <div className="flex items-center gap-2">
-        <FaQuestion className="h-4 w-4 text-orange-500" />
-        <span>Zepto</span>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <FaQuestion className="h-4 w-4 text-orange-500" />
+          <span>Zepto</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹25</span>
       </div>  
     )
   },
+  {
+    value: 've',
+    price: 26,
+    label: (
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <FaQuestion className="h-4 w-4 text-orange-500" />
+          <span>Dream11</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹26</span>
+      </div>
+    )
+  }
 ];
 
 // Polling interval in milliseconds
@@ -140,16 +191,23 @@ export default function DashboardPage() {
     const checkAuth = async () => {
       try {
         // Fetch balance
+        console.log('Fetching user balance from API...');
         const balanceResponse = await fetch('/api/user/balance');
         if (!balanceResponse.ok) {
           if (balanceResponse.status === 401) {
+            console.error('User not authenticated, redirecting to home');
             router.push('/');
             return;
           }
-          throw new Error('Failed to fetch balance');
+          const errorData = await balanceResponse.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('Balance fetch error:', balanceResponse.status, errorData);
+          throw new Error(`Failed to fetch balance: ${errorData.error || balanceResponse.statusText}`);
         }
         const balanceData = await balanceResponse.json();
-        setBalance(balanceData.balance);
+        
+        // Use the actual balance from database 
+        console.log('Retrieved balance:', balanceData.balance);
+        setBalance(Number(balanceData.balance) || 0);
         
         // Show a warning toast if balance is low
         if (balanceData.balance < 10) {
@@ -286,6 +344,18 @@ export default function DashboardPage() {
       return;
     }
 
+    // Get selected service price
+    const selectedServicePrice = serviceOptions.find(option => option.value === selectedService)?.price || 0;
+    
+    // Check if user has enough balance
+    if (balance < selectedServicePrice) {
+      setError(`Insufficient balance. You need ₹${selectedServicePrice} but have ₹${balance}.`);
+      toast.error("Insufficient balance", {
+        description: `This service costs ₹${selectedServicePrice}. Please recharge your account.`
+      });
+      return;
+    }
+
     // Reset states
     setError("");
     setSmsCode("");
@@ -309,6 +379,9 @@ export default function DashboardPage() {
       setPhoneNumber(data.phoneNumber);
       setActivationId(data.activationId);
       setShowResult(true);
+      
+      // Update balance immediately to reflect the purchase
+      setBalance(prevBalance => prevBalance - selectedServicePrice);
       
       // Start polling for SMS code
       setIsPolling(true);
@@ -564,6 +637,14 @@ export default function DashboardPage() {
               className="w-full"
               id="service-select"
             />
+            {selectedService && (
+              <div className="mt-2 text-sm">
+                <span>Selected service price: </span>
+                <span className="font-medium text-green-600">
+                  ₹{serviceOptions.find(option => option.value === selectedService)?.price || 0}
+                </span>
+              </div>
+            )}
           </div>
           
           <div className="w-full">
@@ -572,7 +653,12 @@ export default function DashboardPage() {
               onClick={getPhoneNumber}
               disabled={loading || isPolling}
             >
-              {loading ? "Loading..." : showResult ? "Get Another Number" : "Get Number"}
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Spinner variant="circle" className="h-4 w-4" />
+                  Loading...
+                </span>
+              ) : showResult ? "Get Another Number" : "Get Number"}
             </Button>
           </div>
         </div>
@@ -614,15 +700,54 @@ export default function DashboardPage() {
               
               {renderSmsStatus()}
               
-              <div className="flex justify-end mt-4 text-white">
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={cancelActivation}
-                  disabled={cancelLoading}
-                >
-                  {cancelLoading ? "Cancelling..." : "Cancel Number"}
-                </Button>
+              <div className="flex justify-between mt-4">
+                {/* Add Repeat button when SMS code is received */}
+                {codeReceived && (
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={() => {
+                      // Store current service for reuse
+                      const currentService = selectedService;
+                      // Reset states
+                      setShowResult(false);
+                      setPhoneNumber("");
+                      setActivationId("");
+                      setSmsCode("");
+                      setSmsStatus("");
+                      setPollCount(0);
+                      setCodeReceived(false);
+                      setIsPolling(false);
+                      // Keep the same service selected
+                      setSelectedService(currentService);
+                      // Small delay to avoid button flash
+                      setTimeout(() => {
+                        getPhoneNumber();
+                      }, 100);
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    Get Another Number
+                  </Button>
+                )}
+                
+                <div className={codeReceived ? "ml-auto" : ""}>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={cancelActivation}
+                    disabled={cancelLoading || codeReceived}
+                    className={codeReceived ? "opacity-50 cursor-not-allowed" : ""}
+                    title={codeReceived ? "Cancel not available after SMS is received" : "Cancel this number"}
+                  >
+                    {cancelLoading ? (
+                      <span className="flex items-center gap-2">
+                        <Spinner variant="circle" className="h-4 w-4" />
+                        Cancelling...
+                      </span>
+                    ) : "Cancel Number"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

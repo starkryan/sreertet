@@ -9,25 +9,46 @@ export async function getUserBalance() {
   try {
     const { userId } = await auth();
     
+    console.log('Fetching balance for Clerk userId:', userId);
+    
     if (!userId) {
+      console.error('No userId found in auth context');
       throw new Error("Not authenticated");
     }
 
     try {
-      const { data } = await supabase
+      // First ensure the user exists
+      await ensureUserExists();
+      
+      // Then query for their balance
+      console.log('Querying balance for clerk_id:', userId);
+      const { data, error } = await supabase
         .from("clerk_users")
         .select("balance")
-        .eq("clerk_id", userId)
-        .single();
-
-      return data?.balance || 0;
+        .eq("clerk_id", userId);
+      
+      if (error) {
+        console.error("Database query error:", error);
+        throw error;
+      }
+      
+      // We should have at least one result since we ensured the user exists
+      if (data && data.length > 0) {
+        console.log('Database balance result:', data[0]);
+        // Convert to number to ensure correct type
+        const balanceValue = Number(data[0]?.balance) || 0;
+        return balanceValue;
+      } else {
+        console.log('No balance data found for clerk_id:', userId);
+        return 0;
+      }
     } catch (error) {
       console.error("Error fetching user balance:", error);
       throw new Error("Failed to fetch balance");
     }
   } catch (error: any) {
     console.error("Error in getUserBalance:", error.message);
-    throw new Error("Failed to get balance");
+    throw new Error("Failed to get balance: " + error.message);
   }
 }
 
@@ -93,48 +114,56 @@ export async function ensureUserExists() {
     const { userId } = await auth();
     const user = await currentUser();
     
+    console.log('Ensuring user exists for Clerk userId:', userId);
+    
     if (!userId || !user) {
       throw new Error("Not authenticated");
     }
 
     try {
-      // Check if user exists in database
-      const { data } = await supabase
+      // Try to select the user first
+      const { data, error } = await supabase
         .from("clerk_users")
-        .select("clerk_id")
-        .eq("clerk_id", userId)
-        .single();
+        .select("clerk_id, balance")
+        .eq("clerk_id", userId);
       
-      // User exists, nothing more to do
-      return true;
-    } catch (checkError: any) {
-      // If no user found or error is PGRST116, create one
-      if (checkError.code === "PGRST116") {
-        const primaryEmail = user.emailAddresses[0]?.emailAddress || '';
-        
-        // Insert user with default balance
-        try {
-          await supabase
-            .from("clerk_users")
-            .insert({
-              clerk_id: userId,
-              email: primaryEmail,
-              first_name: user.firstName || '',
-              last_name: user.lastName || '',
-              avatar_url: user.imageUrl || '',
-              balance: 0, // Default balance
-            });
-          
-          return true;
-        } catch (insertError: any) {
-          console.error("Error creating user:", insertError);
-          throw new Error("Failed to create user");
-        }
-      } else {
-        // For other errors
-        console.error("Error checking user:", checkError);
-        throw new Error("Failed to check user");
+      if (error) {
+        console.error("Error checking if user exists:", error);
+        throw error;
       }
+      
+      // If user exists
+      if (data && data.length > 0) {
+        console.log("User found in database:", data[0]);
+        return true;
+      }
+      
+      // If we get here, user doesn't exist, create one
+      console.log("User not found, creating new user record");
+      const primaryEmail = user.emailAddresses[0]?.emailAddress || '';
+      
+      const { data: insertData, error: insertError } = await supabase
+        .from("clerk_users")
+        .insert({
+          clerk_id: userId,
+          email: primaryEmail,
+          first_name: user.firstName || '',
+          last_name: user.lastName || '',
+          avatar_url: user.imageUrl || '',
+          balance: 1000, // Set default balance to 1000
+        })
+        .select();
+      
+      if (insertError) {
+        console.error("Error creating user:", insertError);
+        throw insertError;
+      }
+      
+      console.log("Successfully created user:", insertData);
+      return true;
+    } catch (error) {
+      console.error("Database error in ensureUserExists:", error);
+      throw error;
     }
   } catch (error: any) {
     console.error("Error in ensureUserExists:", error.message);

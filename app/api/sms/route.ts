@@ -9,6 +9,20 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Service price mapping
+const SERVICE_PRICES = {
+  'go': 25,
+  'tg': 50,
+  'wa': 100,
+  'ig': 12,
+  'jx': 22,
+  'am': 20,
+  'wmh': 21,
+  'sn': 24,
+  'zpt': 25,
+  've': 26
+};
+
 export async function GET(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
@@ -35,6 +49,33 @@ export async function GET(request: NextRequest) {
     // Get or create user in Supabase
     const { id: supabaseUserId } = await getOrCreateUser(userId, primaryEmail);
 
+    // Check the user's balance
+    const { data: userData, error: balanceError } = await supabase
+      .from('clerk_users')
+      .select('balance')
+      .eq('clerk_id', userId)
+      .single();
+
+    if (balanceError) {
+      console.error('Error fetching user balance:', balanceError);
+      return NextResponse.json({ error: 'Failed to check balance' }, { status: 500 });
+    }
+
+    // Get the price for the requested service
+    const servicePrice = SERVICE_PRICES[service as keyof typeof SERVICE_PRICES] || 0;
+    if (servicePrice === 0) {
+      return NextResponse.json({ error: 'Invalid service or price not configured' }, { status: 400 });
+    }
+
+    // Check if the user has enough balance
+    if (userData.balance < servicePrice) {
+      return NextResponse.json({ 
+        error: 'Insufficient balance', 
+        requiredBalance: servicePrice,
+        currentBalance: userData.balance 
+      }, { status: 402 }); // 402 Payment Required
+    }
+
     const apiKey = process.env.GRIZZLY_SMS_API_KEY;
     const country = '22';
     const url = `https://api.grizzlysms.com/stubs/handler_api.php?api_key=${apiKey}&action=getNumber&service=${service}&country=${country}`;
@@ -55,6 +96,19 @@ export async function GET(request: NextRequest) {
       const parts = data.split(':');
       const activationId = parts[1];
       const phoneNumber = parts[2];
+      
+      // Deduct balance from the user's account
+      const newBalance = Number(userData.balance) - servicePrice;
+      const { error: updateError } = await supabase
+        .from('clerk_users')
+        .update({ balance: newBalance })
+        .eq('clerk_id', userId);
+        
+      if (updateError) {
+        console.error('Error updating user balance:', updateError);
+        // We got the number but couldn't update balance - still proceed but log error
+        console.warn('User received phone number but balance was not deducted. Manual adjustment needed.');
+      }
       
       // Save the activation to the database
       const { error: insertError } = await supabase
@@ -78,7 +132,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ 
         success: true,
         activationId,
-        phoneNumber 
+        phoneNumber,
+        balanceDeducted: servicePrice,
+        newBalance: newBalance
       });
     }
     
