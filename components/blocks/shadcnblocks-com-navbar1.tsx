@@ -39,9 +39,9 @@ interface Navbar1Props {
 const Navbar1 = ({
   logo = {
     url: "/",
-    src: "https://www.shadcnblocks.com/images/block/block-1.svg",
+    src: "/logo.png",
     alt: "logo",
-    title: "imuid",
+    title: "OTPMaya",
   },
   menu = [
     { title: "Home", url: "/" },
