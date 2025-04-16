@@ -91,16 +91,19 @@ export default function HistoryPage() {
   return (
     <div className="container mx-auto p-2 sm:p-4 space-y-4 sm:space-y-6 mt-4 sm:mt-10 max-w-3xl">
       <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg sm:text-xl font-bold">Number History</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+          <h2 className="text-base sm:text-xl font-bold">Number History</h2>
           <Button
             variant="outline"
             size="sm"
             onClick={() => router.push('/dashboard')}
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 text-xs sm:text-sm self-end sm:self-auto"
+            asChild
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            <a href="/dashboard">
+              <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              Back to Dashboard
+            </a>
           </Button>
         </div>
         

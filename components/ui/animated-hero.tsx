@@ -24,15 +24,15 @@ function Hero() {
 
   return (
     <div className="w-full">
-      <div className="container mx-auto">
-        <div className="flex gap-8 py-20 lg:py-40 items-center justify-center flex-col">
+      <div className="container px-4 mx-auto">
+        <div className="flex gap-4 sm:gap-8 py-12 sm:py-20 lg:py-40 items-center justify-center flex-col">
           <div>
-            <Button variant="secondary" size="sm" className="gap-4">
-              Read our launch article <MoveRight className="w-4 h-4" />
+            <Button variant="secondary" size="sm" className="gap-2 sm:gap-4 text-xs sm:text-sm">
+              Read our launch article <MoveRight className="w-3 h-3 sm:w-4 sm:h-4" />
             </Button>
           </div>
-          <div className="flex gap-4 flex-col">
-            <h1 className="text-5xl md:text-7xl max-w-2xl tracking-tighter text-center font-regular">
+          <div className="flex gap-3 sm:gap-4 flex-col">
+            <h1 className="text-3xl sm:text-5xl md:text-7xl max-w-2xl tracking-tighter text-center font-regular">
               <span className="text-spektr-cyan-50">This is something</span>
               <span className="relative flex w-full justify-center overflow-hidden text-center md:pb-4 md:pt-1">
                 &nbsp;
@@ -60,19 +60,19 @@ function Hero() {
               </span>
             </h1>
 
-            <p className="text-lg md:text-xl leading-relaxed tracking-tight text-muted-foreground max-w-2xl text-center">
+            <p className="text-base sm:text-lg md:text-xl leading-relaxed tracking-tight text-muted-foreground max-w-2xl text-center px-2 sm:px-0">
               Managing a small business today is already tough. Avoid further
               complications by ditching outdated, tedious trade methods. Our
               goal is to streamline SMB trade, making it easier and faster than
               ever.
             </p>
           </div>
-          <div className="flex flex-row gap-3">
-            <Button size="lg" className="gap-4" variant="outline">
-              Jump on a call <PhoneCall className="w-4 h-4" />
+          <div className="flex flex-col sm:flex-row gap-3 w-full justify-center items-center">
+            <Button size="lg" className="gap-2 sm:gap-4 w-full sm:w-auto" variant="outline">
+              Jump on a call <PhoneCall className="w-3 h-3 sm:w-4 sm:h-4" />
             </Button>
-            <Button size="lg" className="gap-4">
-              Sign up here <MoveRight className="w-4 h-4" />
+            <Button size="lg" className="gap-2 sm:gap-4 w-full sm:w-auto">
+              Sign up here <MoveRight className="w-3 h-3 sm:w-4 sm:h-4" />
             </Button>
           </div>
         </div>

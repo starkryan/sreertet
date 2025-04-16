@@ -69,9 +69,9 @@ const Navbar1 = ({
   }, [scrolled]);
 
   return (
-    <section className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'py-2 bg-background/80 backdrop-blur-lg shadow-md' : 'py-4'}`}>
+    <section className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'py-2 bg-background/80 backdrop-blur-lg shadow-md' : 'py-3'}`}>
       <div className="container px-4 mx-auto">
-        <nav className="hidden justify-between lg:flex">
+        <nav className="hidden justify-between lg:flex h-10">
           <div className="flex items-center gap-6">
             <a href={logo.url} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <img src={logo.src} className="w-8" alt={logo.alt} />
@@ -112,7 +112,7 @@ const Navbar1 = ({
           </div>
         </nav>
         <div className="block lg:hidden">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between h-10">
             <a href={logo.url} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <img src={logo.src} className="w-8" alt={logo.alt} />
               <span className="text-lg font-semibold">{logo.title}</span>

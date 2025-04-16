@@ -349,7 +349,7 @@ export default function DashboardPage() {
     
     // Check if user has enough balance
     if (balance < selectedServicePrice) {
-      setError(`Insufficient balance. You need ₹${selectedServicePrice} but have ₹${balance}.`);
+      setError(`Contact support. You need ₹${selectedServicePrice} but have ₹${balance}.`);
       toast.error("Insufficient balance", {
         description: `This service costs ₹${selectedServicePrice}. Please recharge your account.`
       });
@@ -512,13 +512,13 @@ export default function DashboardPage() {
     }
 
     return (
-      <div className="mt-2 sm:mt-20">
+      <div className="mt-2 sm:mt-4">
         <div className={`p-3 sm:p-5 rounded-md border-2 ${codeReceived ? 'bg-green-100 border-green-400 shadow-md animate-pulse' : ''}`}>
           <div className="flex items-center mb-2 sm:mb-3">
             <div className="rounded-full bg-green-500 p-1">
-              <Check className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+              <Check className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
             </div>
-            <h4 className="font-semibold text-green-800 ml-2 text-base sm:text-lg">Verification Code Received</h4>
+            <h4 className="font-semibold text-green-800 ml-2 text-sm sm:text-base">Verification Code Received</h4>
           </div>
           
           <div className="flex flex-col gap-3">
@@ -526,7 +526,7 @@ export default function DashboardPage() {
               value={smsCode} 
               maxLength={codeLength} 
               disabled
-              containerClassName="justify-center flex-wrap gap-x-1 gap-y-2 sm:gap-x-2 sm:gap-y-4"
+              containerClassName="justify-center flex-wrap gap-x-1 gap-y-2 sm:gap-x-2 sm:gap-y-3"
             >
               {groups.map((groupSize, groupIndex) => (
                 <React.Fragment key={`group-${groupIndex}`}>
@@ -541,8 +541,8 @@ export default function DashboardPage() {
                           key={index} 
                           index={index} 
                           className={`bg-white border-2 border-green-400 text-green-700 font-bold 
-                          h-8 w-8 sm:h-10 md:h-12 sm:w-10 md:w-12 text-sm sm:text-base md:text-xl shadow-sm
-                          ${codeReceived ? 'ring-green-500/50 ring-2 sm:ring-[4px]' : ''}`}
+                          h-7 w-7 sm:h-9 md:h-10 sm:w-9 md:w-10 text-xs sm:text-sm md:text-base shadow-sm
+                          ${codeReceived ? 'ring-green-500/50 ring-1 sm:ring-2' : ''}`}
                         />
                       );
                     })}
@@ -557,17 +557,17 @@ export default function DashboardPage() {
                 size="sm"
                 onClick={() => handleCopy(smsCode, setCopyCodeStatus)}
                 className={`bg-green-50 text-green-700 border-2 border-green-400 hover:bg-green-100 
-                hover:text-green-800 font-medium px-3 sm:px-6 py-1 sm:py-2 text-sm shadow-sm transition-colors
+                hover:text-green-800 font-medium px-3 py-1 text-xs sm:text-sm shadow-sm transition-colors
                 ${copyCodeStatus === "copied" ? "bg-green-200" : ""}`}
               >
                 {copyCodeStatus === "copied" ? (
                   <span className="flex items-center">
-                    <Check className="h-4 w-4 mr-1" />
+                    <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                     Copied
                   </span>
                 ) : (
                   <span className="flex items-center">
-                    <Copy className="h-4 w-4 mr-1" />
+                    <Copy className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                     Copy Code
                   </span>
                 )}
@@ -588,12 +588,12 @@ export default function DashboardPage() {
     }
     
     return (
-      <div className="mt-4 p-3 bg-blue-50 text-blue-600 rounded-md">
+      <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-blue-50 text-blue-600 rounded-md text-xs sm:text-sm">
         <div className="flex items-center">
-          <div className="animate-spin mr-2 h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+          <div className="animate-spin mr-2 h-3 w-3 sm:h-4 sm:w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
           <span>Waiting for SMS code... ({pollCount} checks)</span>
         </div>
-        <div className="mt-2 text-xs">
+        <div className="mt-1 sm:mt-2 text-xs">
           {errorCount > 0 && (
             <div className="text-orange-500 font-medium mb-1">
               Network issues detected. Retrying... ({errorCount}/{MAX_CONSECUTIVE_ERRORS})
@@ -609,20 +609,20 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto p-2 sm:p-4 space-y-4 sm:space-y-6 mt-4 sm:mt-10 max-w-xl">
-      <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg sm:text-xl font-bold">Get a Virtual Phone Number</h2>
+      <div className="bg-white dark:bg-gray-800 p-3 sm:p-6 rounded-lg shadow-md">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+          <h2 className="text-base sm:text-xl font-bold">Get a Virtual Phone Number</h2>
           <Button 
             variant="outline"
             size="sm"
             onClick={() => router.push('/history')}
-            className="flex items-center gap-1 text-xs sm:text-sm"
+            className="flex items-center gap-1 text-xs sm:text-sm self-end sm:self-auto"
           >
             <PhoneIcon className="h-3.5 w-3.5" />
             View History
           </Button>
         </div>
-        <p className="mb-3 sm:mb-4 text-sm sm:text-base">Your Balance: {balance} ₹</p>
+        <p className="mb-3 sm:mb-4 text-sm sm:text-base">Your Balance: <span className="font-medium">{balance} ₹</span></p>
         
         <div className="flex flex-col gap-3 sm:gap-4">
           <div className="w-full">
@@ -649,7 +649,7 @@ export default function DashboardPage() {
           
           <div className="w-full">
             <Button 
-              className="w-full"
+              className="w-full py-2 sm:py-4 text-sm sm:text-base"
               onClick={getPhoneNumber}
               disabled={loading || isPolling}
             >
@@ -664,7 +664,7 @@ export default function DashboardPage() {
         </div>
         
         {error && (
-          <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-red-100 text-red-700 rounded-md text-sm">
+          <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-red-100 text-red-700 rounded-md text-sm text-center">
             {error}
           </div>
         )}
@@ -673,13 +673,13 @@ export default function DashboardPage() {
           <div className="mt-4 sm:mt-5">
             <div className="p-3 sm:p-4 border rounded-md">
               <h3 className="font-medium mb-2 text-sm sm:text-base">Virtual Phone Number:</h3>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <p className="text-base sm:text-lg font-bold break-all">{phoneNumber}</p>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => handleCopy(phoneNumber, setCopyStatus)}
-                  className={`ml-2 whitespace-nowrap transition-colors ${copyStatus === "copied" ? "border-green-500 text-green-600 bg-green-50" : ""}`}
+                  className={`whitespace-nowrap transition-colors ${copyStatus === "copied" ? "border-green-500 text-green-600 bg-green-50" : ""}`}
                 >
                   {copyStatus === "copied" ? (
                     <span className="flex items-center">
@@ -700,7 +700,7 @@ export default function DashboardPage() {
               
               {renderSmsStatus()}
               
-              <div className="flex justify-between mt-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between mt-4 gap-2">
                 {/* Add Repeat button when SMS code is received */}
                 {codeReceived && (
                   <Button 
@@ -725,19 +725,19 @@ export default function DashboardPage() {
                         getPhoneNumber();
                       }, 100);
                     }}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
                   >
                     Get Another Number
                   </Button>
                 )}
                 
-                <div className={codeReceived ? "ml-auto" : ""}>
+                <div className={`${codeReceived ? "sm:ml-auto" : ""} w-full sm:w-auto`}>
                   <Button 
                     variant="destructive" 
                     size="sm" 
                     onClick={cancelActivation}
                     disabled={cancelLoading || codeReceived}
-                    className={codeReceived ? "opacity-50 cursor-not-allowed" : ""}
+                    className={`w-full sm:w-auto ${codeReceived ? "opacity-50 cursor-not-allowed" : ""}`}
                     title={codeReceived ? "Cancel not available after SMS is received" : "Cancel this number"}
                   >
                     {cancelLoading ? (
@@ -753,6 +753,15 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+      
+      {/* Hide Clerk components on mobile with CSS */}
+      <style jsx global>{`
+        @media (max-width: 640px) {
+          #clerk-components {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
