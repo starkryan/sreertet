@@ -117,59 +117,66 @@ const Navbar1 = ({
               <img src={logo.src} className="w-8" alt={logo.alt} />
               <span className="text-lg font-semibold">{logo.title}</span>
             </a>
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="hover:bg-muted transition-colors">
-                  <Menu className="size-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>
-                    <a href={logo.url} className="flex items-center gap-2">
-                      <img src={logo.src} className="w-8" alt={logo.alt} />
-                      <span className="text-lg font-semibold">
-                        {logo.title}
-                      </span>
-                    </a>
-                  </SheetTitle>
-                </SheetHeader>
-                <div className="my-6 flex flex-col gap-4">
-                  {menu.map((item) => (
-                    <a
-                      key={item.title}
-                      href={item.url}
-                      className="py-2 font-semibold hover:text-primary transition-colors"
-                    >
-                      {item.title}
-                    </a>
-                  ))}
-                  <SignedIn>
-                    <a
-                      href="/dashboard"
-                      className="py-2 font-semibold hover:text-primary transition-colors"
-                    >
-                      Dashboard
-                    </a>
-                  </SignedIn>
-                  <div className="flex flex-col gap-3">
-                    <SignedOut>
-                      <Button asChild variant="outline" className="hover:bg-primary/10 text-primary">
-                        <SignInButton />
-                      </Button>
-                      <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-                        <SignUpButton />
-                      </Button>
-                    </SignedOut>
-                    <SignedIn>
-                      <div className="flex items-center justify-center">
-                        <UserButton afterSignOutUrl="/" />
-                      </div>
-                    </SignedIn>
-                  </div>
+            <div className="flex items-center gap-3">
+              <SignedIn>
+                <UserButton afterSignOutUrl="/" />
+              </SignedIn>
+              <SignedOut>
+                <div className="hidden sm:block">
+                  <Button asChild variant="outline" size="sm" className="hover:bg-primary/10 text-primary mr-2">
+                    <SignInButton />
+                  </Button>
                 </div>
-              </SheetContent>
-            </Sheet>
+              </SignedOut>
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="hover:bg-muted transition-colors">
+                    <Menu className="size-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>
+                      <a href={logo.url} className="flex items-center gap-2">
+                        <img src={logo.src} className="w-8" alt={logo.alt} />
+                        <span className="text-lg font-semibold">
+                          {logo.title}
+                        </span>
+                      </a>
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="my-6 flex flex-col gap-4">
+                    {menu.map((item) => (
+                      <a
+                        key={item.title}
+                        href={item.url}
+                        className="py-2 font-semibold hover:text-primary transition-colors"
+                      >
+                        {item.title}
+                      </a>
+                    ))}
+                    <SignedIn>
+                      <a
+                        href="/dashboard"
+                        className="py-2 font-semibold hover:text-primary transition-colors"
+                      >
+                        Dashboard
+                      </a>
+                    </SignedIn>
+                    <div className="flex flex-col gap-3">
+                      <SignedOut>
+                        <Button asChild variant="outline" className="hover:bg-primary/10 text-primary">
+                          <SignInButton />
+                        </Button>
+                        <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                          <SignUpButton />
+                        </Button>
+                      </SignedOut>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
         </div>
       </div>
