@@ -36,7 +36,9 @@ const serviceOptions = [
         </div>
         <span className="text-sm font-medium text-green-600 ml-8">₹25</span>
       </div>
-    )
+    ),
+    icon: <FcGoogle className="h-5 w-5" />,
+    displayName: "Google, Gmail, Youtube"
   },
   { 
     value: 'tg', 
@@ -49,7 +51,9 @@ const serviceOptions = [
         </div>
         <span className="text-sm font-medium text-green-600 ml-8">₹50</span>
       </div>  
-    )
+    ),
+    icon: <FaTelegramPlane className="h-5 w-5 text-blue-500" />,
+    displayName: "Telegram"
   },
   { 
     value: 'wa', 
@@ -62,7 +66,9 @@ const serviceOptions = [
         </div>
         <span className="text-sm font-medium text-green-600 ml-8">₹100</span>
       </div>
-    )
+    ),
+    icon: <FaWhatsapp className="h-5 w-5 text-green-500" />,
+    displayName: "WhatsApp"
   },
   { 
     value: 'ig', 
@@ -75,7 +81,9 @@ const serviceOptions = [
         </div>
         <span className="text-sm font-medium text-green-600 ml-8">₹12</span>
       </div>  
-    )
+    ),
+    icon: <FaInstagram className="h-5 w-5 text-pink-500" />,
+    displayName: "Instagram"
   },
   { 
     value: 'jx', 
@@ -88,7 +96,9 @@ const serviceOptions = [
         </div>
         <span className="text-sm font-medium text-green-600 ml-8">₹22</span>
       </div>  
-    )
+    ),
+    icon: <SiSwiggy className="h-5 w-5 text-orange-500" />,
+    displayName: "Swiggy"
   },
   { 
     value: 'am', 
@@ -101,7 +111,9 @@ const serviceOptions = [
         </div>
         <span className="text-sm font-medium text-green-600 ml-8">₹20</span>
       </div>  
-    )
+    ),
+    icon: <FaAmazon className="h-5 w-5 text-orange-500" />,
+    displayName: "Amazon"
   },
   { 
     value: 'wmh', 
@@ -114,7 +126,9 @@ const serviceOptions = [
         </div>
         <span className="text-sm font-medium text-green-600 ml-8">₹21</span>
       </div>  
-    )
+    ),
+    icon: <FaQuestion className="h-5 w-5 text-orange-500" />,
+    displayName: "Winmatch"
   },
   { 
     value: 'sn', 
@@ -127,7 +141,9 @@ const serviceOptions = [
         </div>
         <span className="text-sm font-medium text-green-600 ml-8">₹24</span>
       </div>  
-    )
+    ),
+    icon: <FaQuestion className="h-5 w-5 text-orange-500" />,
+    displayName: "OLX"
   },
   { 
     value: 'zpt', 
@@ -140,7 +156,9 @@ const serviceOptions = [
         </div>
         <span className="text-sm font-medium text-green-600 ml-8">₹25</span>
       </div>  
-    )
+    ),
+    icon: <FaQuestion className="h-5 w-5 text-orange-500" />,
+    displayName: "Zepto"
   },
   {
     value: 've',
@@ -153,7 +171,9 @@ const serviceOptions = [
         </div>
         <span className="text-sm font-medium text-green-600 ml-8">₹26</span>
       </div>
-    )
+    ),
+    icon: <FaQuestion className="h-5 w-5 text-orange-500" />,
+    displayName: "Dream11"
   }
 ];
 
@@ -163,77 +183,279 @@ const POLLING_INTERVAL = 3000; // 3 seconds
 // Maximum consecutive errors before stopping polling
 const MAX_CONSECUTIVE_ERRORS = 5;
 
+// Add interface for active number (added before the PhoneNumberCard component)
+interface ActiveNumber {
+  phoneNumber: string;
+  activationId: string;
+  service: string;
+  activationTime: Date | null;
+  smsCode: string;
+  isPolling: boolean;
+  pollCount: number;
+  smsStatus: string;
+  cancelAvailable: boolean;
+  remainingSeconds: number;
+  errorCount: number;
+}
+
+// Add a new PhoneNumberCard component above the main DashboardPage
+const PhoneNumberCard = ({
+  phoneNumber,
+  activationId,
+  service,
+  activationTime,
+  smsCode,
+  isPolling,
+  pollCount,
+  smsStatus,
+  cancelAvailable,
+  remainingSeconds,
+  onCancel,
+  onCopy
+}: {
+  phoneNumber: string;
+  activationId: string;
+  service: string;
+  activationTime: Date | null;
+  smsCode: string;
+  isPolling: boolean;
+  pollCount: number;
+  smsStatus: string;
+  cancelAvailable: boolean;
+  remainingSeconds: number;
+  onCancel: () => void;
+  onCopy: (text: string, type: string) => void;
+}) => {
+  const serviceName = serviceOptions.find(option => option.value === service)?.label || service;
+  const [showShimmer, setShowShimmer] = useState(false);
+  
+  // Effect for shimmer animation when SMS code is received
+  useEffect(() => {
+    if (smsCode && smsCode.length > 0) {
+      setShowShimmer(true);
+      const timer = setTimeout(() => {
+        setShowShimmer(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [smsCode]);
+  
+  // For display of copied status
+  const [copyStatus, setCopyStatus] = useState<{ number: boolean; code: boolean }>({ number: false, code: false });
+  
+  // Handle copy function with visual feedback
+  const handleCopyWithFeedback = (text: string, type: string) => {
+    onCopy(text, type);
+    
+    if (type === 'number') {
+      setCopyStatus({ ...copyStatus, number: true });
+      setTimeout(() => setCopyStatus(prev => ({ ...prev, number: false })), 2000);
+    } else if (type === 'code') {
+      setCopyStatus({ ...copyStatus, code: true });
+      setTimeout(() => setCopyStatus(prev => ({ ...prev, code: false })), 2000);
+    }
+  };
+
+  return (
+    <div className={`bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-lg p-3 relative 
+      ${showShimmer ? 'shimmer-bg' : ''} 
+      ${smsStatus === 'success' ? 'border-green-300 dark:border-green-800' : ''}
+      ${smsStatus === 'waiting' ? 'border-yellow-300 dark:border-yellow-800' : ''}
+      ${smsStatus === 'cancelling' ? 'border-red-300 dark:border-red-800' : ''}`}>
+      
+      {/* Service and number header */}
+      <div className="flex justify-between mb-3">
+        <h3 className="font-medium text-sm sm:text-base">Virtual Phone Number:</h3>
+        <div className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-600 font-medium">
+          {serviceName}
+        </div>
+      </div>
+      
+      {/* Phone number with copy button */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="text-base sm:text-lg font-mono bg-gray-100 dark:bg-gray-800 rounded px-2 py-1 flex-1">
+          {phoneNumber}
+        </div>
+        <button
+          className={`p-1.5 rounded-md ${copyStatus.number ? 'bg-green-100 text-green-700' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700'}`}
+          onClick={() => handleCopyWithFeedback(phoneNumber, 'number')}
+          aria-label="Copy phone number"
+        >
+          {copyStatus.number ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        </button>
+      </div>
+      
+      {/* SMS Code display - show code or waiting message */}
+      <div className="mb-4">
+        <h3 className="font-medium text-sm mb-1">SMS Code:</h3>
+        {smsCode ? (
+          <div className="flex items-center gap-2">
+            <div className="font-mono bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded px-3 py-1.5 text-base sm:text-lg flex-1 tracking-wider text-center">
+              {smsCode}
+            </div>
+            <button
+              className={`p-1.5 rounded-md ${copyStatus.code ? 'bg-green-100 text-green-700' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700'}`}
+              onClick={() => handleCopyWithFeedback(smsCode, 'code')}
+              aria-label="Copy SMS code"
+            >
+              {copyStatus.code ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </button>
+          </div>
+        ) : (
+          <div className="flex-1 h-9 bg-gray-100 dark:bg-gray-800 rounded px-2 py-1 text-gray-500 dark:text-gray-400 text-sm flex items-center justify-center">
+            {isPolling ? (
+              <div className="flex items-center gap-2">
+                <Spinner variant="circle" className="h-4 w-4" />
+                <span>Waiting for SMS... (poll #{pollCount})</span>
+              </div>
+            ) : (
+              "No SMS code received yet"
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Cancellation timer / button */}
+      {!smsCode && (
+        <>
+          {!cancelAvailable && remainingSeconds > 0 && (
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+              Cancellation available in <span className="font-semibold">{remainingSeconds}</span> seconds
+            </div>
+          )}
+          
+          {cancelAvailable && (
+            <div className="flex justify-end">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={onCancel}
+                className="w-full sm:w-auto"
+              >
+                Cancel Number
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+      
+      {/* Status indicator badge */}
+      <div className="absolute top-2 right-2">
+        {smsStatus === 'success' && (
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+            Success
+          </span>
+        )}
+        {smsStatus === 'waiting' && (
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+            Waiting
+          </span>
+        )}
+        {smsStatus === 'cancelling' && (
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+            Cancelling
+          </span>
+        )}
+      </div>
+      
+      {/* Activation time */}
+      {activationTime && (
+        <div className="text-xs text-gray-400 mt-2">
+          Activated: {new Date(activationTime).toLocaleTimeString()}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const [selectedService, setSelectedService] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [activationId, setActivationId] = useState("");
   const [loading, setLoading] = useState(false);
-  const [cancelLoading, setCancelLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showResult, setShowResult] = useState(false);
   const [balance, setBalance] = useState(0);
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
-  const [copyCodeStatus, setCopyCodeStatus] = useState<"idle" | "copied">("idle");
   
-  // SMS code and status state
-  const [smsCode, setSmsCode] = useState("");
-  const [smsStatus, setSmsStatus] = useState("");
-  const [isPolling, setIsPolling] = useState(false);
-  const [pollCount, setPollCount] = useState(0);
-  const [codeReceived, setCodeReceived] = useState(false);
+  // Multiple phone numbers state
+  const [activeNumbers, setActiveNumbers] = useState<Array<ActiveNumber>>([]);
+  
+  // References for timers
+  const countdownIntervals = React.useRef<{[key: string]: NodeJS.Timeout | null}>({});
+  const cancelTimers = React.useRef<{[key: string]: NodeJS.Timeout | null}>({});
+  const pollingIntervals = React.useRef<{[key: string]: NodeJS.Timeout | null}>({});
 
-  // Error handling state
-  const [errorCount, setErrorCount] = useState(0);
-  
-  // Activation time tracking
-  const [activationTime, setActivationTime] = useState<Date | null>(null);
-  const [cancelAvailable, setCancelAvailable] = useState(false);
-  const [remainingSeconds, setRemainingSeconds] = useState(120); // 2 minutes in seconds
-  
-  // Reference to store the countdown interval
-  const countdownInterval = React.useRef<NodeJS.Timeout | null>(null);
-  const cancelTimer = React.useRef<NodeJS.Timeout | null>(null);
-
-  // Function to start the countdown timer
-  const startCountdown = React.useCallback((seconds: number) => {
-    // Clear any existing interval first
-    if (countdownInterval.current) {
-      clearInterval(countdownInterval.current);
+  // Function to start countdown for a specific activation
+  const startCountdown = React.useCallback((activationId: string, seconds: number) => {
+    // Clear any existing interval for this activation
+    if (countdownIntervals.current[activationId]) {
+      clearInterval(countdownIntervals.current[activationId] as NodeJS.Timeout);
     }
     
-    // Set initial remaining time
-    setRemainingSeconds(seconds);
+    // Update the state for this specific activation
+    setActiveNumbers(prev => prev.map(item => 
+      item.activationId === activationId 
+        ? { ...item, remainingSeconds: seconds } 
+        : item
+    ));
     
-    // Start new interval
-    countdownInterval.current = setInterval(() => {
-      setRemainingSeconds(prevSeconds => {
-        if (prevSeconds <= 1) {
-          // Clear interval when reached zero
-          if (countdownInterval.current) {
-            clearInterval(countdownInterval.current);
-            countdownInterval.current = null;
+    // Set new interval
+    countdownIntervals.current[activationId] = setInterval(() => {
+      setActiveNumbers(prev => {
+        const updatedNumbers = prev.map(item => {
+          if (item.activationId === activationId) {
+            const newValue = item.remainingSeconds - 1;
+            
+            if (newValue <= 0) {
+              // Clear interval when reached zero
+              if (countdownIntervals.current[activationId]) {
+                clearInterval(countdownIntervals.current[activationId] as NodeJS.Timeout);
+                countdownIntervals.current[activationId] = null;
+              }
+              
+              // Set cancel available
+              return { 
+                ...item, 
+                remainingSeconds: 0,
+                cancelAvailable: true 
+              };
+            }
+            
+            return { ...item, remainingSeconds: newValue };
           }
-          return 0;
-        }
-        return prevSeconds - 1;
+          return item;
+        });
+        
+        return updatedNumbers;
       });
     }, 1000);
   }, []);
 
-  // Clear the countdown on unmount
+  // Clean up all intervals on unmount
   useEffect(() => {
     return () => {
-      if (countdownInterval.current) {
-        clearInterval(countdownInterval.current);
-      }
-      if (cancelTimer.current) {
-        clearTimeout(cancelTimer.current);
-      }
+      // Clear all countdown intervals
+      Object.keys(countdownIntervals.current).forEach(key => {
+        if (countdownIntervals.current[key]) {
+          clearInterval(countdownIntervals.current[key] as NodeJS.Timeout);
+        }
+      });
+      
+      // Clear all cancel timers
+      Object.keys(cancelTimers.current).forEach(key => {
+        if (cancelTimers.current[key]) {
+          clearTimeout(cancelTimers.current[key] as NodeJS.Timeout);
+        }
+      });
+      
+      // Clear all polling intervals
+      Object.keys(pollingIntervals.current).forEach(key => {
+        if (pollingIntervals.current[key]) {
+          clearInterval(pollingIntervals.current[key] as NodeJS.Timeout);
+        }
+      });
     };
   }, []);
 
-  // Fetch user data on component mount
+  // Fetch user data and active numbers on component mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -267,89 +489,114 @@ export default function DashboardPage() {
         const activeResponse = await fetch('/api/sms/active');
         if (activeResponse.ok) {
           const activeData = await activeResponse.json();
-          if (activeData.success && activeData.activation) {
-            // Set the active phone number
-            setPhoneNumber(activeData.activation.phone_number);
-            setActivationId(activeData.activation.activation_id);
-            setSelectedService(activeData.activation.service);
-            setShowResult(true);
+          
+          // Support multiple active numbers (API needs to be updated to return array)
+          const activations = Array.isArray(activeData.activations) 
+            ? activeData.activations 
+            : (activeData.activation ? [activeData.activation] : []);
             
-            // Store activation data in localStorage
-            const activationData = {
-              phone_number: activeData.activation.phone_number,
-              activation_id: activeData.activation.activation_id,
-              service: activeData.activation.service,
-              activation_time: activeData.activation.created_at || new Date().toISOString(),
-              sms_code: activeData.activation.sms_code || ''
-            };
-            localStorage.setItem('activationData', JSON.stringify(activationData));
-            
-            // If there's a code, display it
-            if (activeData.activation.sms_code) {
-              setSmsCode(activeData.activation.sms_code);
-              setCodeReceived(true);
-            } else {
-              // Start polling for SMS code
-              setIsPolling(true);
-              toast.info("Waiting for SMS code", { 
-                description: "We'll notify you when it arrives" 
-              });
-            }
-            
-            // Set activation time based on server data or fall back to now
-            const serverTime = activeData.activation.created_at ? new Date(activeData.activation.created_at) : new Date();
-            setActivationTime(serverTime);
-            
-            // Calculate if cancel is available based on elapsed time
-            const now = new Date();
-            const elapsedMs = now.getTime() - serverTime.getTime();
-            const twoMinutesMs = 2 * 60 * 1000;
-            
-            if (elapsedMs >= twoMinutesMs) {
-              setCancelAvailable(true);
-            } else {
-              // Calculate remaining seconds and start countdown
+          if (activations.length > 0) {
+            // Create active number entries for each activation
+            const numbersData = activations.map((activation: any) => {
+              const activationTime = activation.created_at 
+                ? new Date(activation.created_at) 
+                : new Date();
+                
+              // Calculate if cancel is available and remaining seconds
+              const now = new Date();
+              const elapsedMs = now.getTime() - activationTime.getTime();
+              const twoMinutesMs = 2 * 60 * 1000;
+              const cancelAvailable = elapsedMs >= twoMinutesMs;
               const remainingSecs = Math.max(0, Math.ceil((twoMinutesMs - elapsedMs) / 1000));
-              startCountdown(remainingSecs);
-            }
-          } else {
-            // Check localStorage for any saved activation
-            const savedActivation = localStorage.getItem('activationData');
-            if (savedActivation) {
-              try {
-                const activationData = JSON.parse(savedActivation);
-                setPhoneNumber(activationData.phone_number);
-                setActivationId(activationData.activation_id);
-                setSelectedService(activationData.service);
-                setShowResult(true);
+              
+              // Create the active number entry
+              return {
+                phoneNumber: activation.phone_number,
+                activationId: activation.activation_id,
+                service: activation.service,
+                activationTime: activationTime,
+                smsCode: activation.sms_code || '',
+                isPolling: !activation.sms_code,
+                pollCount: 0,
+                smsStatus: 'waiting',
+                cancelAvailable,
+                remainingSeconds: remainingSecs,
+                errorCount: 0
+              };
+            });
+            
+            // Set all active numbers
+            setActiveNumbers(numbersData);
+            
+            // Start countdowns and polling where needed
+            numbersData.forEach((number: ActiveNumber) => {
+              // If cancellation is not available yet and there are remaining seconds
+              if (!number.cancelAvailable && number.remainingSeconds > 0) {
+                startCountdown(number.activationId, number.remainingSeconds);
+              }
+              
+              // If polling is needed (no SMS code yet)
+              if (number.isPolling) {
+                startPolling(number.activationId);
                 
-                if (activationData.sms_code) {
-                  setSmsCode(activationData.sms_code);
-                  setCodeReceived(true);
-                } else {
-                  // Start polling for SMS code
-                  setIsPolling(true);
+                // Show toast only for the first one to avoid multiple toasts
+                if (numbersData.indexOf(number) === 0) {
+                  toast.info("Waiting for SMS code", { 
+                    description: "We'll notify you when it arrives" 
+                  });
                 }
+              }
+            });
+            
+            // Store data in localStorage
+            localStorage.setItem('activeNumbers', JSON.stringify(numbersData));
+          } else {
+            // Check localStorage for any saved activations
+            const savedNumbers = localStorage.getItem('activeNumbers');
+            if (savedNumbers) {
+              try {
+                const parsedNumbers = JSON.parse(savedNumbers);
                 
-                // Set activation time from saved data
-                const savedTime = new Date(activationData.activation_time);
-                setActivationTime(savedTime);
-                
-                // Calculate if cancel is available based on elapsed time
-                const now = new Date();
-                const elapsedMs = now.getTime() - savedTime.getTime();
-                const twoMinutesMs = 2 * 60 * 1000;
-                
-                if (elapsedMs >= twoMinutesMs) {
-                  setCancelAvailable(true);
-                } else {
-                  // Calculate remaining seconds and start countdown
-                  const remainingSecs = Math.max(0, Math.ceil((twoMinutesMs - elapsedMs) / 1000));
-                  startCountdown(remainingSecs);
+                // Validate and restore timers
+                if (Array.isArray(parsedNumbers) && parsedNumbers.length > 0) {
+                  const validatedNumbers = parsedNumbers.map((number: ActiveNumber) => {
+                    // Ensure activationTime is a Date object
+                    const activationTime = number.activationTime 
+                      ? new Date(number.activationTime) 
+                      : new Date();
+                      
+                    // Recalculate cancel availability and remaining time
+                    const now = new Date();
+                    const elapsedMs = now.getTime() - activationTime.getTime();
+                    const twoMinutesMs = 2 * 60 * 1000;
+                    const cancelAvailable = elapsedMs >= twoMinutesMs;
+                    const remainingSecs = Math.max(0, Math.ceil((twoMinutesMs - elapsedMs) / 1000));
+                    
+                    return {
+                      ...number,
+                      activationTime,
+                      cancelAvailable,
+                      remainingSeconds: remainingSecs
+                    };
+                  });
+                  
+                  // Set active numbers
+                  setActiveNumbers(validatedNumbers);
+                  
+                  // Restart timers and polling
+                  validatedNumbers.forEach(number => {
+                    if (!number.cancelAvailable && number.remainingSeconds > 0) {
+                      startCountdown(number.activationId, number.remainingSeconds);
+                    }
+                    
+                    if (number.isPolling && !number.smsCode) {
+                      startPolling(number.activationId);
+                    }
+                  });
                 }
               } catch (error) {
                 console.error('Error parsing saved activation data:', error);
-                localStorage.removeItem('activationData');
+                localStorage.removeItem('activeNumbers');
               }
             }
           }
@@ -363,107 +610,114 @@ export default function DashboardPage() {
     checkAuth();
   }, [router, startCountdown]);
 
-  // Function to check for SMS code
-  const checkSmsCode = useCallback(async () => {
-    if (!activationId) return;
+  // Function to start polling for a specific activation
+  const startPolling = useCallback((activationId: string) => {
+    // Clear any existing interval
+    if (pollingIntervals.current[activationId]) {
+      clearInterval(pollingIntervals.current[activationId] as NodeJS.Timeout);
+    }
     
+    // Set the activation to polling state
+    setActiveNumbers(prev => prev.map(item => 
+      item.activationId === activationId 
+        ? { ...item, isPolling: true } 
+        : item
+    ));
+    
+    // Initial check
+    checkSmsCode(activationId);
+    
+    // Set up interval for subsequent checks
+    pollingIntervals.current[activationId] = setInterval(() => {
+      checkSmsCode(activationId);
+    }, POLLING_INTERVAL);
+  }, []);
+
+  // Function to check SMS code for a specific activation
+  const checkSmsCode = useCallback(async (activationId: string) => {
     try {
+      // Update poll count first
+      setActiveNumbers(prev => prev.map(item => {
+        if (item.activationId === activationId) {
+          return { ...item, pollCount: item.pollCount + 1 };
+        }
+        return item;
+      }));
+      
       const response = await fetch(`/api/sms/check?id=${activationId}`);
       
-      // Handle HTTP errors
+      // If the request failed, increment error count
       if (!response.ok) {
-        // Increment error count but don't stop polling immediately
-        setErrorCount(prev => prev + 1);
-        
-        // If we've had too many consecutive errors, stop polling
-        if (errorCount >= MAX_CONSECUTIVE_ERRORS) {
-          console.error(`Stopping SMS polling after ${MAX_CONSECUTIVE_ERRORS} consecutive errors`);
-          setIsPolling(false);
-          setError(`Failed to check for SMS after ${MAX_CONSECUTIVE_ERRORS} attempts. Please try again.`);
-          toast.error(`Failed to check for SMS. Please try again.`);
-          return;
-        }
-        
-        // For 404 errors (activation not found), stop polling immediately
-        if (response.status === 404) {
-          setIsPolling(false);
-          setError("The number activation was not found. It may have expired.");
-          toast.error("Number activation not found. It may have expired.");
-          return;
-        }
-        
-        // For other errors, continue polling
-        console.warn(`Error checking SMS (attempt ${errorCount + 1}/${MAX_CONSECUTIVE_ERRORS})`);
+        setActiveNumbers(prev => prev.map(item => {
+          if (item.activationId === activationId) {
+            return { ...item, errorCount: item.errorCount + 1 };
+          }
+          return item;
+        }));
         return;
       }
       
-      // Reset error count on successful request
-      setErrorCount(0);
-      
       const data = await response.json();
       
-      // Update status
-      setSmsStatus(data.status);
-      
-      // If we received a code, stop polling and display it
-      if (data.status === 'success' && data.code) {
-        setSmsCode(data.code);
-        setIsPolling(false);
-        setCodeReceived(true);
-        
-        // Update SMS code in localStorage
-        const savedActivation = localStorage.getItem('activationData');
-        if (savedActivation) {
-          try {
-            const activationData = JSON.parse(savedActivation);
-            activationData.sms_code = data.code;
-            localStorage.setItem('activationData', JSON.stringify(activationData));
-          } catch (error) {
-            console.error('Error updating SMS code in localStorage:', error);
+      // Update active numbers with new data
+      setActiveNumbers(prev => prev.map(item => {
+        if (item.activationId === activationId) {
+          const updatedItem = { ...item };
+          
+          // If we received a code
+          if (data.status === 'success' && data.code) {
+            // Show a success toast with the code
+            toast.success('SMS Code Received!', {
+              description: `Code: ${data.code}`,
+              duration: 5000
+            });
+            
+            // Update state with code and stop polling
+            return {
+              ...updatedItem,
+              smsCode: data.code,
+              isPolling: false,
+              smsStatus: 'success'
+            };
           }
+          
+          // If the activation was cancelled, stop polling
+          if (data.status === 'cancelled') {
+            // Clear polling interval
+            if (pollingIntervals.current[activationId]) {
+              clearInterval(pollingIntervals.current[activationId] as NodeJS.Timeout);
+              pollingIntervals.current[activationId] = null;
+            }
+            
+            return {
+              ...updatedItem,
+              isPolling: false,
+              smsStatus: 'cancelled'
+            };
+          }
+          
+          return updatedItem;
         }
-        
-        toast.success("SMS code received!", {
-          description: "Your verification code has arrived"
-        });
-      }
+        return item;
+      }));
       
-      // If the activation was cancelled, stop polling
-      if (data.status === 'cancelled') {
-        setIsPolling(false);
-      }
-      
-      // Increment poll count to show progress to user
-      setPollCount(prev => prev + 1);
+      // Update localStorage
+      localStorage.setItem('activeNumbers', JSON.stringify(activeNumbers));
       
     } catch (error) {
       console.error('Error checking SMS code:', error);
-      // Increment error count but don't stop polling immediately
-      setErrorCount(prev => prev + 1);
-    }
-  }, [activationId, errorCount]);
-
-  // Set up polling effect
-  useEffect(() => {
-    let pollingTimer: NodeJS.Timeout | null = null;
-    
-    if (isPolling && activationId) {
-      // Initial check immediately
-      checkSmsCode();
       
-      // Set up interval for subsequent checks
-      pollingTimer = setInterval(checkSmsCode, POLLING_INTERVAL);
+      // Update error count
+      setActiveNumbers(prev => prev.map(item => {
+        if (item.activationId === activationId) {
+          return { ...item, errorCount: item.errorCount + 1 };
+        }
+        return item;
+      }));
     }
-    
-    // Clean up function to clear the interval when component unmounts
-    // or when polling is stopped
-    return () => {
-      if (pollingTimer) {
-        clearInterval(pollingTimer);
-      }
-    };
-  }, [isPolling, activationId, checkSmsCode]);
+  }, [activeNumbers]);
 
+  // Function to get a new phone number
   const getPhoneNumber = async () => {
     if (!selectedService) {
       setError("Please select a service first");
@@ -483,33 +737,19 @@ export default function DashboardPage() {
       return;
     }
 
-    // Reset states
+    // Reset error state
     setError("");
-    setSmsCode("");
-    setSmsStatus("");
-    setPollCount(0);
-    setErrorCount(0);
-    setCodeReceived(false);
-    setCancelAvailable(false);
-    
-    // Clear any existing timers before starting new ones
-    if (countdownInterval.current) {
-      clearInterval(countdownInterval.current);
-      countdownInterval.current = null;
-    }
-    if (cancelTimer.current) {
-      clearTimeout(cancelTimer.current);
-      cancelTimer.current = null;
-    }
-    
-    // Reset remaining seconds to full duration
-    setRemainingSeconds(120);
-    
     setLoading(true);
     
     try {
+      // Show pending toast to indicate request is being processed
+      const pendingToast = toast.loading("Requesting phone number...");
+      
       const response = await fetch(`/api/sms?service=${selectedService}`);
       const data = await response.json();
+      
+      // Dismiss the pending toast
+      toast.dismiss(pendingToast);
       
       if (data.error) {
         setError(data.error);
@@ -517,36 +757,41 @@ export default function DashboardPage() {
         return;
       }
       
-      // Display the number and save activation ID
-      setPhoneNumber(data.phoneNumber);
-      setActivationId(data.activationId);
-      setShowResult(true);
-      
-      // Set activation time to current time and start the countdown
+      // Create activation time
       const now = new Date();
-      setActivationTime(now);
       
-      // Start countdown for 2 minutes (120 seconds)
-      startCountdown(120);
-      
-      // Store in localStorage
-      const activationData = {
-        phone_number: data.phoneNumber,
-        activation_id: data.activationId,
+      // Create new activation object
+      const newNumber = {
+        phoneNumber: data.phoneNumber,
+        activationId: data.activationId,
         service: selectedService,
-        activation_time: now.toISOString(),
-        sms_code: ''
+        activationTime: now,
+        smsCode: '',
+        isPolling: true,
+        pollCount: 0,
+        smsStatus: 'waiting',
+        cancelAvailable: false,
+        remainingSeconds: 120,
+        errorCount: 0
       };
-      localStorage.setItem('activationData', JSON.stringify(activationData));
       
-      // Update balance immediately to reflect the purchase
+      // Add to state
+      setActiveNumbers(prev => [newNumber, ...prev]);
+      
+      // Start countdown and polling
+      startCountdown(data.activationId, 120);
+      startPolling(data.activationId);
+      
+      // Update localStorage
+      localStorage.setItem('activeNumbers', JSON.stringify([newNumber, ...activeNumbers]));
+      
+      // Update balance
       setBalance(prevBalance => prevBalance - selectedServicePrice);
       
-      // Start polling for SMS code
-      setIsPolling(true);
-      
-      // Show success toast
-      toast.success("Phone number obtained successfully");
+      // Show success toast with more detailed information
+      toast.success(`Phone number received`, {
+        description: `Number: ${data.phoneNumber} for ${serviceOptions.find((option) => option.value === selectedService)?.label?.toString() || 'service'}`
+      });
     } catch (error) {
       console.error('Error:', error);
       setError('Failed to get a number. Please try again.');
@@ -556,22 +801,23 @@ export default function DashboardPage() {
     }
   };
 
-  const cancelActivation = async () => {
-    if (!activationId) {
-      setError("No active number to cancel");
-      toast.error("No active number to cancel");
+  // Function to cancel a specific activation
+  const cancelActivation = async (activationId: string) => {
+    // Find the activation
+    const activation = activeNumbers.find(num => num.activationId === activationId);
+    if (!activation) {
+      toast.error("No activation found to cancel");
       return;
     }
 
-    // Check if 2 minutes have passed since activation
-    if (activationTime) {
+    // Check if 2 minutes have passed
+    if (activation.activationTime) {
       const now = new Date();
-      const elapsedTimeMs = now.getTime() - activationTime.getTime();
+      const elapsedTimeMs = now.getTime() - activation.activationTime.getTime();
       const twoMinutesMs = 2 * 60 * 1000;
       
       if (elapsedTimeMs < twoMinutesMs) {
         const remainingSeconds = Math.ceil((twoMinutesMs - elapsedTimeMs) / 1000);
-        setError(`Early cancellation denied. Please wait ${remainingSeconds} second${remainingSeconds !== 1 ? 's' : ''} to cancel.`);
         toast.error(`Early cancellation denied`, {
           description: `You can cancel after 2 minutes (${remainingSeconds} second${remainingSeconds !== 1 ? 's' : ''} remaining)`
         });
@@ -579,9 +825,22 @@ export default function DashboardPage() {
       }
     }
 
-    // Stop polling when cancelling
-    setIsPolling(false);
-    setCancelLoading(true);
+    // Stop polling
+    if (pollingIntervals.current[activationId]) {
+      clearInterval(pollingIntervals.current[activationId] as NodeJS.Timeout);
+      pollingIntervals.current[activationId] = null;
+    }
+    
+    // Mark as cancelling in UI
+    setActiveNumbers(prev => prev.map(item => {
+      if (item.activationId === activationId) {
+        return { ...item, isPolling: false, smsStatus: 'cancelling' };
+      }
+      return item;
+    }));
+    
+    // Show cancellation in progress toast
+    const cancelToast = toast.loading("Cancelling phone number...");
     
     try {
       const response = await fetch('/api/sms/cancel', {
@@ -594,80 +853,93 @@ export default function DashboardPage() {
       
       const data = await response.json();
       
+      // Dismiss the loading toast
+      toast.dismiss(cancelToast);
+      
       if (data.error) {
-        // Handle EARLY_CANCEL_DENIED error specifically
+        // Handle EARLY_CANCEL_DENIED error
         if (data.error.includes("EARLY_CANCEL_DENIED") || data.error.toLowerCase().includes("early cancel")) {
-          setError("Early cancellation denied. You can cancel after 2 minutes.");
           toast.error("Early cancellation denied", {
             description: "You can cancel this number after 2 minutes"
           });
-          setIsPolling(true); // Resume polling
-          setCancelLoading(false);
+          
+          // Resume polling
+          setActiveNumbers(prev => prev.map(item => {
+            if (item.activationId === activationId) {
+              return { ...item, isPolling: true, smsStatus: 'waiting' };
+            }
+            return item;
+          }));
+          
+          startPolling(activationId);
           return;
         }
         
-        setError(data.error);
         toast.error(data.error);
         return;
       }
       
-      // Reset state after successful cancellation
-      setShowResult(false);
-      setPhoneNumber("");
-      setActivationId("");
-      setSmsCode("");
-      setSmsStatus("");
-      setPollCount(0);
-      setCodeReceived(false);
-      setActivationTime(null);
-      setCancelAvailable(false);
+      // Remove from state on success
+      setActiveNumbers(prev => prev.filter(item => item.activationId !== activationId));
       
-      // Clear any existing timers
-      if (countdownInterval.current) {
-        clearInterval(countdownInterval.current);
-        countdownInterval.current = null;
-      }
-      if (cancelTimer.current) {
-        clearTimeout(cancelTimer.current);
-        cancelTimer.current = null;
+      // Clear timers
+      if (countdownIntervals.current[activationId]) {
+        clearInterval(countdownIntervals.current[activationId] as NodeJS.Timeout);
+        delete countdownIntervals.current[activationId];
       }
       
-      // Reset remaining seconds
-      setRemainingSeconds(120);
+      // Update localStorage
+      localStorage.setItem('activeNumbers', JSON.stringify(
+        activeNumbers.filter(item => item.activationId !== activationId)
+      ));
       
-      // Clear localStorage
-      localStorage.removeItem('activationData');
-      
-      // Show success toast
-      toast.success("Phone number cancelled successfully");
-      
-      // Refetch balance as it might have changed
-      try {
-        const balanceResponse = await fetch('/api/user/balance');
-        if (balanceResponse.ok) {
-          const balanceData = await balanceResponse.json();
-          setBalance(balanceData.balance);
+      // Show success message with refund information
+      if (data.refundAmount) {
+        toast.success(`Number cancelled successfully`, {
+          description: `₹${data.refundAmount} has been refunded to your balance.`,
+          duration: 5000
+        });
+        
+        // Update balance with refund
+        if (data.newBalance) {
+          setBalance(data.newBalance);
         }
-      } catch (err) {
-        console.error('Error refreshing balance:', err);
+      } else {
+        toast.success(`Number cancelled successfully`);
       }
       
     } catch (error) {
-      console.error('Error cancelling activation:', error);
-      setError('Failed to cancel. Please try again.');
-      toast.error('Failed to cancel. Please try again.');
-    } finally {
-      setCancelLoading(false);
+      // Dismiss the loading toast
+      toast.dismiss(cancelToast);
+      
+      console.error('Error cancelling number:', error);
+      toast.error("Failed to cancel number", {
+        description: "Please try again or contact support if the issue persists."
+      });
+      
+      // Restore the status in UI
+      setActiveNumbers(prev => prev.map(item => {
+        if (item.activationId === activationId) {
+          return { ...item, isPolling: true, smsStatus: 'waiting' };
+        }
+        return item;
+      }));
     }
   };
 
-  const handleCopy = (text: string, setCopyStateFunc: React.Dispatch<React.SetStateAction<"idle" | "copied">>) => {
+  // Get active numbers count
+  const activeNumbersCount = activeNumbers.length;
+  
+  // Calculate total cost of active numbers
+  const totalActiveCost = activeNumbers.reduce((sum, num) => {
+    const price = serviceOptions.find(option => option.value === num.service)?.price || 0;
+    return sum + price;
+  }, 0);
+
+  // Handle copy functionality
+  const handleCopy = (text: string, type: string, activationId: string) => {
     navigator.clipboard.writeText(text)
       .then(() => {
-        setCopyStateFunc("copied");
-        setTimeout(() => {
-          setCopyStateFunc("idle");
-        }, 2000);
         toast.success("Copied to clipboard");
       })
       .catch(err => {
@@ -675,184 +947,6 @@ export default function DashboardPage() {
         toast.error("Failed to copy text");
       });
   };
-
-  // Render OTP input with SMS code
-  const renderOtpInput = () => {
-    if (!smsCode) return null;
-
-    // Determine max length based on SMS code length
-    const codeLength = smsCode.length;
-    
-    // Determine optimal grouping based on code length
-    let groups = [];
-    
-    if (codeLength <= 3) {
-      // For 1-3 digits, just one group
-      groups = [codeLength];
-    } else if (codeLength <= 6) {
-      // For 4-6 digits, split into two groups
-      const firstGroupSize = Math.ceil(codeLength / 2);
-      groups = [firstGroupSize, codeLength - firstGroupSize];
-    } else {
-      // For 7+ digits (including 8), use three groups
-      // For 8 digits, do 3-2-3 grouping
-      if (codeLength === 8) {
-        groups = [3, 2, 3];
-      } else {
-        // For other lengths, divide evenly into 3 groups
-        const groupSize = Math.floor(codeLength / 3);
-        const remainder = codeLength % 3;
-        
-        groups = [groupSize, groupSize, groupSize];
-        
-        // Distribute remainder
-        if (remainder === 1) {
-          groups[1] += 1; // Add to middle group
-        } else if (remainder === 2) {
-          groups[0] += 1; // Add to first and last group
-          groups[2] += 1;
-        }
-      }
-    }
-
-    return (
-      <div className="mt-2 sm:mt-4">
-        <div className={`p-3 sm:p-5 rounded-md border-2 ${codeReceived ? 'bg-green-100 border-green-400 shadow-md animate-pulse' : ''}`}>
-          <div className="flex items-center mb-2 sm:mb-3">
-            <div className="rounded-full bg-green-500 p-1">
-              <Check className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
-            </div>
-            <h4 className="font-semibold text-green-800 ml-2 text-sm sm:text-base">Verification Code Received</h4>
-          </div>
-          
-          <div className="flex flex-col gap-3">
-            <InputOTP 
-              value={smsCode} 
-              maxLength={codeLength} 
-              disabled
-              containerClassName="justify-center flex-wrap gap-x-1 gap-y-2 sm:gap-x-2 sm:gap-y-3"
-            >
-              {groups.map((groupSize, groupIndex) => (
-                <React.Fragment key={`group-${groupIndex}`}>
-                  {groupIndex > 0 && (
-                    <InputOTPSeparator className="text-green-500 mx-0.5 sm:mx-1 font-bold" />
-                  )}
-                  <InputOTPGroup>
-                    {[...Array(groupSize)].map((_, i) => {
-                      const index = groups.slice(0, groupIndex).reduce((sum, size) => sum + size, 0) + i;
-                      return (
-                        <InputOTPSlot 
-                          key={index} 
-                          index={index} 
-                          className={`bg-white border-2 border-green-400 text-green-700 font-bold 
-                          h-7 w-7 sm:h-9 md:h-10 sm:w-9 md:w-10 text-xs sm:text-sm md:text-base shadow-sm
-                          ${codeReceived ? 'ring-green-500/50 ring-1 sm:ring-2' : ''}`}
-                        />
-                      );
-                    })}
-                  </InputOTPGroup>
-                </React.Fragment>
-              ))}
-            </InputOTP>
-            
-            <div className="flex justify-center mt-2 sm:mt-3">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => handleCopy(smsCode, setCopyCodeStatus)}
-                className={`bg-green-50 text-green-700 border-2 border-green-400 hover:bg-green-100 
-                hover:text-green-800 font-medium px-3 py-1 text-xs sm:text-sm shadow-sm transition-colors
-                ${copyCodeStatus === "copied" ? "bg-green-200" : ""}`}
-              >
-                {copyCodeStatus === "copied" ? (
-                  <span className="flex items-center">
-                    <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                    Copied
-                  </span>
-                ) : (
-                  <span className="flex items-center">
-                    <Copy className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                    Copy Code
-                  </span>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Render function for SMS status indicator
-  const renderSmsStatus = () => {
-    if (!isPolling && !smsCode) return null;
-    
-    if (smsCode) {
-      return renderOtpInput();
-    }
-    
-    return (
-      <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-blue-50 text-blue-600 rounded-md text-xs sm:text-sm">
-        <div className="flex items-center">
-          <div className="animate-spin mr-2 h-3 w-3 sm:h-4 sm:w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-          <span>Waiting for SMS code... ({pollCount} checks)</span>
-        </div>
-        <div className="mt-1 sm:mt-2 text-xs">
-          {errorCount > 0 && (
-            <div className="text-orange-500 font-medium mb-1">
-              Network issues detected. Retrying... ({errorCount}/{MAX_CONSECUTIVE_ERRORS})
-            </div>
-          )}
-          {smsStatus === 'waiting' && "The system is waiting for a code to be sent to this number."}
-          {smsStatus === 'retry' && "The last code wasn't accepted. Waiting for a new one."}
-          {smsStatus === 'resend' && "The system is waiting for the code to be resent."}
-        </div>
-      </div>
-    );
-  };
-
-  // Set up activation timer when activationTime changes
-  useEffect(() => {
-    if (activationTime && !cancelAvailable) {
-      const now = new Date();
-      const elapsedTimeMs = now.getTime() - activationTime.getTime();
-      const twoMinutesMs = 2 * 60 * 1000;
-      
-      if (elapsedTimeMs >= twoMinutesMs) {
-        setCancelAvailable(true);
-        setRemainingSeconds(0);
-      } else {
-        // Calculate initial remaining seconds
-        const initialRemainingSeconds = Math.ceil((twoMinutesMs - elapsedTimeMs) / 1000);
-        
-        // Start the countdown
-        startCountdown(initialRemainingSeconds);
-        
-        // Set a timer to enable cancel button after remaining time
-        if (cancelTimer.current) {
-          clearTimeout(cancelTimer.current);
-        }
-        cancelTimer.current = setTimeout(() => {
-          setCancelAvailable(true);
-          setRemainingSeconds(0);
-          toast.info("Cancellation is now available for this number");
-          
-          // Clear the countdown interval
-          if (countdownInterval.current) {
-            clearInterval(countdownInterval.current);
-            countdownInterval.current = null;
-          }
-        }, twoMinutesMs - elapsedTimeMs);
-      }
-    }
-    
-    return () => {
-      // Clean up timers when activationTime changes
-      if (cancelTimer.current) {
-        clearTimeout(cancelTimer.current);
-      }
-    };
-  }, [activationTime, cancelAvailable, startCountdown]);
 
   return (
     <div className="container mx-auto p-2 sm:p-4 space-y-4 sm:space-y-6 mt-4 sm:mt-10 max-w-xl">
@@ -869,21 +963,57 @@ export default function DashboardPage() {
             View History
           </Button>
         </div>
-        <p className="mb-3 sm:mb-4 text-sm sm:text-base">Your Balance: <span className="font-medium">{balance} ₹</span></p>
+        
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-4">
+          <p className="text-sm sm:text-base">Your Balance: <span className="font-medium">{balance} ₹</span></p>
+          
+          {activeNumbersCount > 0 && (
+            <div className="text-xs sm:text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded-md mt-1 sm:mt-0">
+              <span className="font-medium">{activeNumbersCount}</span> active number{activeNumbersCount !== 1 ? 's' : ''} 
+              {totalActiveCost > 0 && <span> (₹{totalActiveCost} total)</span>}
+            </div>
+          )}
+        </div>
         
         <div className="flex flex-col gap-3 sm:gap-4">
           <div className="w-full">
             <label htmlFor="service-select" className="block text-sm font-medium mb-1 sm:mb-2">
               Select Service
             </label>
-            <Combobox 
-              options={serviceOptions}
-              value={selectedService}
-              onValueChange={setSelectedService}
-              placeholder="Select service"
-              className="w-full"
-              id="service-select"
-            />
+            
+            {/* Desktop dropdown */}
+            <div className="hidden sm:block">
+              <Combobox 
+                options={serviceOptions}
+                value={selectedService}
+                onValueChange={setSelectedService}
+                placeholder="Select service"
+                className="w-full"
+                id="service-select"
+              />
+            </div>
+            
+            {/* Mobile-friendly service selection grid */}
+            <div className="grid grid-cols-2 sm:hidden gap-2 mt-1">
+              {serviceOptions.map((service) => (
+                <div 
+                  key={service.value} 
+                  className={`cursor-pointer border rounded-md p-2 transition-all ${
+                    selectedService === service.value 
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                      : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                  onClick={() => setSelectedService(service.value)}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    {service.icon}
+                    <span className="font-medium text-sm">{service.displayName}</span>
+                  </div>
+                  <div className="text-green-600 font-medium text-sm">₹{service.price}</div>
+                </div>
+              ))}
+            </div>
+            
             {selectedService && (
               <div className="mt-2 text-sm">
                 <span>Selected service price: </span>
@@ -898,14 +1028,16 @@ export default function DashboardPage() {
             <Button 
               className="w-full py-2 sm:py-4 text-sm sm:text-base"
               onClick={getPhoneNumber}
-              disabled={loading || isPolling}
+              disabled={loading || !selectedService}
             >
               {loading ? (
                 <span className="flex items-center gap-2">
                   <Spinner variant="circle" className="h-4 w-4" />
                   Loading...
                 </span>
-              ) : showResult ? "Get Another Number" : "Get Number"}
+              ) : (
+                activeNumbersCount > 0 ? "Get Another Number" : "Get Number"
+              )}
             </Button>
           </div>
         </div>
@@ -916,128 +1048,68 @@ export default function DashboardPage() {
           </div>
         )}
         
-        {showResult && (
-          <div className="mt-4 sm:mt-5">
-            <div className="p-3 sm:p-4 border rounded-md">
-              <h3 className="font-medium mb-2 text-sm sm:text-base">Virtual Phone Number:</h3>
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <p className="text-base sm:text-lg font-bold break-all">{phoneNumber}</p>
+        {/* Show warning if attempting to get too many numbers */}
+        {activeNumbersCount >= 5 && (
+          <div className="mt-3 p-2 bg-yellow-100 text-yellow-800 rounded-md text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-yellow-600">⚠️</span>
+              <span>You have many active numbers. Consider cancelling some to save your balance.</span>
+            </div>
+          </div>
+        )}
+        
+        {/* Active Numbers List */}
+        {activeNumbersCount > 0 && (
+          <div className="mt-4 sm:mt-6">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-semibold text-sm sm:text-base">Active Numbers</h3>
+              
+              {activeNumbersCount > 1 && (
                 <Button 
                   variant="outline" 
-                  size="sm" 
-                  onClick={() => handleCopy(phoneNumber, setCopyStatus)}
-                  className={`whitespace-nowrap transition-colors ${copyStatus === "copied" ? "border-green-500 text-green-600 bg-green-50" : ""}`}
+                  size="sm"
+                  className="text-xs border-red-200 text-red-600 hover:bg-red-50"
+                  onClick={() => {
+                    // Show confirmation dialog
+                    if (confirm("Are you sure you want to cancel all active numbers? This cannot be undone.")) {
+                      // Cancel all numbers that are eligible (have cancel available)
+                      const eligibleForCancel = activeNumbers.filter(num => num.cancelAvailable);
+                      
+                      if (eligibleForCancel.length === 0) {
+                        toast.error("No numbers are eligible for cancellation yet");
+                        return;
+                      }
+                      
+                      // Cancel each eligible number
+                      eligibleForCancel.forEach(num => {
+                        cancelActivation(num.activationId);
+                      });
+                    }
+                  }}
                 >
-                  {copyStatus === "copied" ? (
-                    <span className="flex items-center">
-                      <Check className="h-4 w-4 mr-1" />
-                      Copied
-                    </span>
-                  ) : (
-                    <span className="flex items-center">
-                      <Copy className="h-4 w-4 mr-1" />
-                      Copy
-                    </span>
-                  )}
+                  Cancel All Eligible
                 </Button>
-              </div>
-              <div className="mt-1 text-xs text-gray-500 break-all">
-                <span>Activation ID: {activationId}</span>
-              </div>
-              
-              {renderSmsStatus()}
-              
-              {/* Add timer display when cancellation is not available */}
-              {!cancelAvailable && showResult && !codeReceived && remainingSeconds > 0 && (
-                <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-yellow-700">Cancellation available in:</span>
-                    <span className="font-mono font-bold text-sm text-yellow-800 bg-yellow-100 px-2 py-1 rounded">
-                      {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
-                    </span>
-                  </div>
-                  <div className="w-full bg-yellow-200 rounded-full h-1.5 mt-2">
-                    <div 
-                      className="bg-yellow-500 h-1.5 rounded-full transition-all duration-1000 ease-linear" 
-                      style={{ width: `${(remainingSeconds / 120) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
               )}
-              
-              <div className="flex flex-col sm:flex-row sm:justify-between mt-4 gap-2">
-                {/* Add Repeat button when SMS code is received */}
-                {codeReceived && (
-                  <Button 
-                    variant="default" 
-                    size="sm" 
-                    onClick={() => {
-                      // Store current service for reuse
-                      const currentService = selectedService;
-                      // Reset states
-                      setShowResult(false);
-                      setPhoneNumber("");
-                      setActivationId("");
-                      setSmsCode("");
-                      setSmsStatus("");
-                      setPollCount(0);
-                      setCodeReceived(false);
-                      setIsPolling(false);
-                      setActivationTime(null);
-                      setCancelAvailable(false);
-                      
-                      // Clear any existing timers
-                      if (countdownInterval.current) {
-                        clearInterval(countdownInterval.current);
-                        countdownInterval.current = null;
-                      }
-                      if (cancelTimer.current) {
-                        clearTimeout(cancelTimer.current);
-                        cancelTimer.current = null;
-                      }
-                      
-                      // Reset remaining seconds
-                      setRemainingSeconds(120);
-                      
-                      // Clear localStorage to reset persistent state
-                      localStorage.removeItem('activationData');
-                      
-                      // Keep the same service selected
-                      setSelectedService(currentService);
-                      // Small delay to avoid button flash
-                      setTimeout(() => {
-                        getPhoneNumber();
-                      }, 100);
-                    }}
-                    className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
-                  >
-                    Get Another Number
-                  </Button>
-                )}
-                
-                <div className={`${codeReceived ? "sm:ml-auto" : ""} w-full sm:w-auto`}>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    onClick={cancelActivation}
-                    disabled={cancelLoading || codeReceived || !cancelAvailable}
-                    className={`w-full sm:w-auto ${codeReceived ? "opacity-50 cursor-not-allowed" : ""}`}
-                    title={codeReceived ? "Cancel not available after SMS is received" : !cancelAvailable ? `You can cancel after 2 minutes (${remainingSeconds}s remaining)` : "Cancel this number"}
-                  >
-                    {cancelLoading ? (
-                      <span className="flex items-center gap-2">
-                        <Spinner variant="circle" className="h-4 w-4" />
-                        Cancelling...
-                      </span>
-                    ) : !cancelAvailable ? (
-                      <span className="flex items-center gap-1">
-                        <span className="animate-pulse">⏱️</span> 
-                        {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
-                      </span>
-                    ) : "Cancel Number"}
-                  </Button>
-                </div>
-              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {activeNumbers.map((number: ActiveNumber) => (
+                <PhoneNumberCard
+                  key={number.activationId}
+                  phoneNumber={number.phoneNumber}
+                  activationId={number.activationId}
+                  service={number.service}
+                  activationTime={number.activationTime}
+                  smsCode={number.smsCode}
+                  isPolling={number.isPolling}
+                  pollCount={number.pollCount}
+                  smsStatus={number.smsStatus}
+                  cancelAvailable={number.cancelAvailable}
+                  remainingSeconds={number.remainingSeconds}
+                  onCancel={() => cancelActivation(number.activationId)}
+                  onCopy={(text, type) => handleCopy(text, type, number.activationId)}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -1049,6 +1121,25 @@ export default function DashboardPage() {
           #clerk-components {
             display: none !important;
           }
+        }
+        
+        @keyframes shimmer {
+          0% {
+            background-position: -200px 0;
+          }
+          100% {
+            background-position: 200px 0;
+          }
+        }
+        
+        .shimmer-bg {
+          animation-duration: 2s;
+          animation-fill-mode: forwards;
+          animation-iteration-count: infinite;
+          animation-name: shimmer;
+          animation-timing-function: linear;
+          background: linear-gradient(to right, #f6f7f8 8%, #edeef1 18%, #f6f7f8 33%);
+          background-size: 800px 104px;
         }
       `}</style>
     </div>
