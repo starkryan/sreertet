@@ -190,6 +190,48 @@ export default function DashboardPage() {
   const [activationTime, setActivationTime] = useState<Date | null>(null);
   const [cancelAvailable, setCancelAvailable] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(120); // 2 minutes in seconds
+  
+  // Reference to store the countdown interval
+  const countdownInterval = React.useRef<NodeJS.Timeout | null>(null);
+  const cancelTimer = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Function to start the countdown timer
+  const startCountdown = React.useCallback((seconds: number) => {
+    // Clear any existing interval first
+    if (countdownInterval.current) {
+      clearInterval(countdownInterval.current);
+    }
+    
+    // Set initial remaining time
+    setRemainingSeconds(seconds);
+    
+    // Start new interval
+    countdownInterval.current = setInterval(() => {
+      setRemainingSeconds(prevSeconds => {
+        if (prevSeconds <= 1) {
+          // Clear interval when reached zero
+          if (countdownInterval.current) {
+            clearInterval(countdownInterval.current);
+            countdownInterval.current = null;
+          }
+          return 0;
+        }
+        return prevSeconds - 1;
+      });
+    }, 1000);
+  }, []);
+
+  // Clear the countdown on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownInterval.current) {
+        clearInterval(countdownInterval.current);
+      }
+      if (cancelTimer.current) {
+        clearTimeout(cancelTimer.current);
+      }
+    };
+  }, []);
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -221,7 +263,7 @@ export default function DashboardPage() {
           });
         }
         
-        // Check for active phone numbers
+        // Check for active phone numbers from server
         const activeResponse = await fetch('/api/sms/active');
         if (activeResponse.ok) {
           const activeData = await activeResponse.json();
@@ -231,6 +273,16 @@ export default function DashboardPage() {
             setActivationId(activeData.activation.activation_id);
             setSelectedService(activeData.activation.service);
             setShowResult(true);
+            
+            // Store activation data in localStorage
+            const activationData = {
+              phone_number: activeData.activation.phone_number,
+              activation_id: activeData.activation.activation_id,
+              service: activeData.activation.service,
+              activation_time: activeData.activation.created_at || new Date().toISOString(),
+              sms_code: activeData.activation.sms_code || ''
+            };
+            localStorage.setItem('activationData', JSON.stringify(activationData));
             
             // If there's a code, display it
             if (activeData.activation.sms_code) {
@@ -243,6 +295,63 @@ export default function DashboardPage() {
                 description: "We'll notify you when it arrives" 
               });
             }
+            
+            // Set activation time based on server data or fall back to now
+            const serverTime = activeData.activation.created_at ? new Date(activeData.activation.created_at) : new Date();
+            setActivationTime(serverTime);
+            
+            // Calculate if cancel is available based on elapsed time
+            const now = new Date();
+            const elapsedMs = now.getTime() - serverTime.getTime();
+            const twoMinutesMs = 2 * 60 * 1000;
+            
+            if (elapsedMs >= twoMinutesMs) {
+              setCancelAvailable(true);
+            } else {
+              // Calculate remaining seconds and start countdown
+              const remainingSecs = Math.max(0, Math.ceil((twoMinutesMs - elapsedMs) / 1000));
+              startCountdown(remainingSecs);
+            }
+          } else {
+            // Check localStorage for any saved activation
+            const savedActivation = localStorage.getItem('activationData');
+            if (savedActivation) {
+              try {
+                const activationData = JSON.parse(savedActivation);
+                setPhoneNumber(activationData.phone_number);
+                setActivationId(activationData.activation_id);
+                setSelectedService(activationData.service);
+                setShowResult(true);
+                
+                if (activationData.sms_code) {
+                  setSmsCode(activationData.sms_code);
+                  setCodeReceived(true);
+                } else {
+                  // Start polling for SMS code
+                  setIsPolling(true);
+                }
+                
+                // Set activation time from saved data
+                const savedTime = new Date(activationData.activation_time);
+                setActivationTime(savedTime);
+                
+                // Calculate if cancel is available based on elapsed time
+                const now = new Date();
+                const elapsedMs = now.getTime() - savedTime.getTime();
+                const twoMinutesMs = 2 * 60 * 1000;
+                
+                if (elapsedMs >= twoMinutesMs) {
+                  setCancelAvailable(true);
+                } else {
+                  // Calculate remaining seconds and start countdown
+                  const remainingSecs = Math.max(0, Math.ceil((twoMinutesMs - elapsedMs) / 1000));
+                  startCountdown(remainingSecs);
+                }
+              } catch (error) {
+                console.error('Error parsing saved activation data:', error);
+                localStorage.removeItem('activationData');
+              }
+            }
           }
         }
       } catch (err) {
@@ -252,7 +361,7 @@ export default function DashboardPage() {
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, startCountdown]);
 
   // Function to check for SMS code
   const checkSmsCode = useCallback(async () => {
@@ -301,6 +410,19 @@ export default function DashboardPage() {
         setSmsCode(data.code);
         setIsPolling(false);
         setCodeReceived(true);
+        
+        // Update SMS code in localStorage
+        const savedActivation = localStorage.getItem('activationData');
+        if (savedActivation) {
+          try {
+            const activationData = JSON.parse(savedActivation);
+            activationData.sms_code = data.code;
+            localStorage.setItem('activationData', JSON.stringify(activationData));
+          } catch (error) {
+            console.error('Error updating SMS code in localStorage:', error);
+          }
+        }
+        
         toast.success("SMS code received!", {
           description: "Your verification code has arrived"
         });
@@ -369,6 +491,20 @@ export default function DashboardPage() {
     setErrorCount(0);
     setCodeReceived(false);
     setCancelAvailable(false);
+    
+    // Clear any existing timers before starting new ones
+    if (countdownInterval.current) {
+      clearInterval(countdownInterval.current);
+      countdownInterval.current = null;
+    }
+    if (cancelTimer.current) {
+      clearTimeout(cancelTimer.current);
+      cancelTimer.current = null;
+    }
+    
+    // Reset remaining seconds to full duration
+    setRemainingSeconds(120);
+    
     setLoading(true);
     
     try {
@@ -386,9 +522,22 @@ export default function DashboardPage() {
       setActivationId(data.activationId);
       setShowResult(true);
       
-      // Set activation time to current time
+      // Set activation time to current time and start the countdown
       const now = new Date();
       setActivationTime(now);
+      
+      // Start countdown for 2 minutes (120 seconds)
+      startCountdown(120);
+      
+      // Store in localStorage
+      const activationData = {
+        phone_number: data.phoneNumber,
+        activation_id: data.activationId,
+        service: selectedService,
+        activation_time: now.toISOString(),
+        sms_code: ''
+      };
+      localStorage.setItem('activationData', JSON.stringify(activationData));
       
       // Update balance immediately to reflect the purchase
       setBalance(prevBalance => prevBalance - selectedServicePrice);
@@ -472,6 +621,22 @@ export default function DashboardPage() {
       setCodeReceived(false);
       setActivationTime(null);
       setCancelAvailable(false);
+      
+      // Clear any existing timers
+      if (countdownInterval.current) {
+        clearInterval(countdownInterval.current);
+        countdownInterval.current = null;
+      }
+      if (cancelTimer.current) {
+        clearTimeout(cancelTimer.current);
+        cancelTimer.current = null;
+      }
+      
+      // Reset remaining seconds
+      setRemainingSeconds(120);
+      
+      // Clear localStorage
+      localStorage.removeItem('activationData');
       
       // Show success toast
       toast.success("Phone number cancelled successfully");
@@ -646,11 +811,8 @@ export default function DashboardPage() {
     );
   };
 
-  // Add useEffect to update cancel availability after 2 minutes and show countdown
+  // Set up activation timer when activationTime changes
   useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    let countdownTimer: NodeJS.Timeout | null = null;
-    
     if (activationTime && !cancelAvailable) {
       const now = new Date();
       const elapsedTimeMs = now.getTime() - activationTime.getTime();
@@ -662,33 +824,35 @@ export default function DashboardPage() {
       } else {
         // Calculate initial remaining seconds
         const initialRemainingSeconds = Math.ceil((twoMinutesMs - elapsedTimeMs) / 1000);
-        setRemainingSeconds(initialRemainingSeconds);
+        
+        // Start the countdown
+        startCountdown(initialRemainingSeconds);
         
         // Set a timer to enable cancel button after remaining time
-        timer = setTimeout(() => {
+        if (cancelTimer.current) {
+          clearTimeout(cancelTimer.current);
+        }
+        cancelTimer.current = setTimeout(() => {
           setCancelAvailable(true);
           setRemainingSeconds(0);
           toast.info("Cancellation is now available for this number");
+          
+          // Clear the countdown interval
+          if (countdownInterval.current) {
+            clearInterval(countdownInterval.current);
+            countdownInterval.current = null;
+          }
         }, twoMinutesMs - elapsedTimeMs);
-        
-        // Set a countdown timer that updates every second
-        countdownTimer = setInterval(() => {
-          setRemainingSeconds(prev => {
-            if (prev <= 1) {
-              if (countdownTimer) clearInterval(countdownTimer);
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
       }
     }
     
     return () => {
-      if (timer) clearTimeout(timer);
-      if (countdownTimer) clearInterval(countdownTimer);
+      // Clean up timers when activationTime changes
+      if (cancelTimer.current) {
+        clearTimeout(cancelTimer.current);
+      }
     };
-  }, [activationTime, cancelAvailable]);
+  }, [activationTime, cancelAvailable, startCountdown]);
 
   return (
     <div className="container mx-auto p-2 sm:p-4 space-y-4 sm:space-y-6 mt-4 sm:mt-10 max-w-xl">
@@ -821,6 +985,23 @@ export default function DashboardPage() {
                       setIsPolling(false);
                       setActivationTime(null);
                       setCancelAvailable(false);
+                      
+                      // Clear any existing timers
+                      if (countdownInterval.current) {
+                        clearInterval(countdownInterval.current);
+                        countdownInterval.current = null;
+                      }
+                      if (cancelTimer.current) {
+                        clearTimeout(cancelTimer.current);
+                        cancelTimer.current = null;
+                      }
+                      
+                      // Reset remaining seconds
+                      setRemainingSeconds(120);
+                      
+                      // Clear localStorage to reset persistent state
+                      localStorage.removeItem('activationData');
+                      
                       // Keep the same service selected
                       setSelectedService(currentService);
                       // Small delay to avoid button flash
