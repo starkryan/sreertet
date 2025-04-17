@@ -485,7 +485,49 @@ export default function DashboardPage() {
           });
         }
         
-        // Check for active phone numbers from server
+        // First, restore numbers from localStorage to ensure persistence between page navigations
+        const savedNumbers = localStorage.getItem('activeNumbers');
+        let restoredNumbers: ActiveNumber[] = [];
+        
+        if (savedNumbers) {
+          try {
+            const parsedNumbers = JSON.parse(savedNumbers);
+            
+            if (Array.isArray(parsedNumbers) && parsedNumbers.length > 0) {
+              restoredNumbers = parsedNumbers.map((number: any) => {
+                // Ensure activationTime is a Date object
+                const activationTime = number.activationTime 
+                  ? new Date(number.activationTime) 
+                  : new Date();
+                  
+                // Recalculate cancel availability and remaining time
+                const now = new Date();
+                const elapsedMs = now.getTime() - activationTime.getTime();
+                const twoMinutesMs = 2 * 60 * 1000;
+                const cancelAvailable = elapsedMs >= twoMinutesMs;
+                const remainingSecs = Math.max(0, Math.ceil((twoMinutesMs - elapsedMs) / 1000));
+                
+                // Important: preserve the poll count from localStorage
+                return {
+                  ...number,
+                  activationTime,
+                  cancelAvailable,
+                  remainingSeconds: remainingSecs,
+                  pollCount: number.pollCount || 0,
+                  errorCount: number.errorCount || 0
+                };
+              });
+              
+              // Set active numbers from localStorage
+              setActiveNumbers(restoredNumbers);
+            }
+          } catch (error) {
+            console.error('Error parsing saved activation data:', error);
+            // Don't clear localStorage yet, we'll try to fetch from API first
+          }
+        }
+        
+        // Now try to get active phone numbers from server to complement localStorage data
         const activeResponse = await fetch('/api/sms/active');
         if (activeResponse.ok) {
           const activeData = await activeResponse.json();
@@ -509,6 +551,11 @@ export default function DashboardPage() {
               const cancelAvailable = elapsedMs >= twoMinutesMs;
               const remainingSecs = Math.max(0, Math.ceil((twoMinutesMs - elapsedMs) / 1000));
               
+              // Find if we have this activation in our restoredNumbers to preserve poll count
+              const existingNumber = restoredNumbers.find(
+                num => num.activationId === activation.activation_id
+              );
+              
               // Create the active number entry
               return {
                 phoneNumber: activation.phone_number,
@@ -517,90 +564,41 @@ export default function DashboardPage() {
                 activationTime: activationTime,
                 smsCode: activation.sms_code || '',
                 isPolling: !activation.sms_code,
-                pollCount: 0,
+                // If we have this number in localStorage, preserve poll count
+                pollCount: existingNumber ? existingNumber.pollCount : 0,
                 smsStatus: 'waiting',
                 cancelAvailable,
                 remainingSeconds: remainingSecs,
-                errorCount: 0
+                errorCount: existingNumber ? existingNumber.errorCount : 0
               };
             });
             
             // Set all active numbers
             setActiveNumbers(numbersData);
             
-            // Start countdowns and polling where needed
-            numbersData.forEach((number: ActiveNumber) => {
-              // If cancellation is not available yet and there are remaining seconds
-              if (!number.cancelAvailable && number.remainingSeconds > 0) {
-                startCountdown(number.activationId, number.remainingSeconds);
-              }
-              
-              // If polling is needed (no SMS code yet)
-              if (number.isPolling) {
-                startPolling(number.activationId);
-                
-                // Show toast only for the first one to avoid multiple toasts
-                if (numbersData.indexOf(number) === 0) {
-                  toast.info("Waiting for SMS code", { 
-                    description: "We'll notify you when it arrives" 
-                  });
-                }
-              }
-            });
-            
             // Store data in localStorage
             localStorage.setItem('activeNumbers', JSON.stringify(numbersData));
-          } else {
-            // Check localStorage for any saved activations
-            const savedNumbers = localStorage.getItem('activeNumbers');
-            if (savedNumbers) {
-              try {
-                const parsedNumbers = JSON.parse(savedNumbers);
-                
-                // Validate and restore timers
-                if (Array.isArray(parsedNumbers) && parsedNumbers.length > 0) {
-                  const validatedNumbers = parsedNumbers.map((number: ActiveNumber) => {
-                    // Ensure activationTime is a Date object
-                    const activationTime = number.activationTime 
-                      ? new Date(number.activationTime) 
-                      : new Date();
-                      
-                    // Recalculate cancel availability and remaining time
-                    const now = new Date();
-                    const elapsedMs = now.getTime() - activationTime.getTime();
-                    const twoMinutesMs = 2 * 60 * 1000;
-                    const cancelAvailable = elapsedMs >= twoMinutesMs;
-                    const remainingSecs = Math.max(0, Math.ceil((twoMinutesMs - elapsedMs) / 1000));
-                    
-                    return {
-                      ...number,
-                      activationTime,
-                      cancelAvailable,
-                      remainingSeconds: remainingSecs
-                    };
-                  });
-                  
-                  // Set active numbers
-                  setActiveNumbers(validatedNumbers);
-                  
-                  // Restart timers and polling
-                  validatedNumbers.forEach(number => {
-                    if (!number.cancelAvailable && number.remainingSeconds > 0) {
-                      startCountdown(number.activationId, number.remainingSeconds);
-                    }
-                    
-                    if (number.isPolling && !number.smsCode) {
-                      startPolling(number.activationId);
-                    }
-                  });
-                }
-              } catch (error) {
-                console.error('Error parsing saved activation data:', error);
-                localStorage.removeItem('activeNumbers');
-              }
-            }
+          } else if (restoredNumbers.length === 0) {
+            // If no activations from API and nothing in localStorage, clear
+            localStorage.removeItem('activeNumbers');
           }
         }
+        
+        // Start timers for all active numbers
+        const numbersToProcess = activeNumbers.length > 0 ? activeNumbers : restoredNumbers;
+        
+        numbersToProcess.forEach((number: ActiveNumber) => {
+          // If cancellation is not available yet and there are remaining seconds
+          if (!number.cancelAvailable && number.remainingSeconds > 0) {
+            startCountdown(number.activationId, number.remainingSeconds);
+          }
+          
+          // If polling is needed (no SMS code yet)
+          if (number.isPolling && !number.smsCode) {
+            startPolling(number.activationId);
+          }
+        });
+        
       } catch (err) {
         console.error('Error fetching user data:', err);
         toast.error("Failed to load user data");
@@ -610,112 +608,287 @@ export default function DashboardPage() {
     checkAuth();
   }, [router, startCountdown]);
 
-  // Function to start polling for a specific activation
-  const startPolling = useCallback((activationId: string) => {
-    // Clear any existing interval
-    if (pollingIntervals.current[activationId]) {
-      clearInterval(pollingIntervals.current[activationId] as NodeJS.Timeout);
-    }
-    
-    // Set the activation to polling state
-    setActiveNumbers(prev => prev.map(item => 
-      item.activationId === activationId 
-        ? { ...item, isPolling: true } 
-        : item
-    ));
-    
-    // Initial check
-    checkSmsCode(activationId);
-    
-    // Set up interval for subsequent checks
-    pollingIntervals.current[activationId] = setInterval(() => {
-      checkSmsCode(activationId);
-    }, POLLING_INTERVAL);
-  }, []);
-
   // Function to check SMS code for a specific activation
   const checkSmsCode = useCallback(async (activationId: string) => {
     try {
-      // Update poll count first
-      setActiveNumbers(prev => prev.map(item => {
-        if (item.activationId === activationId) {
-          return { ...item, pollCount: item.pollCount + 1 };
-        }
-        return item;
-      }));
+      // Find the activation in state first to verify it exists
+      const activationExists = activeNumbers.some(num => num.activationId === activationId);
+      if (!activationExists) {
+        console.warn(`Attempted to check SMS code for non-existent activation: ${activationId}`);
+        return;
+      }
+      
+      // Critical: Update poll count BEFORE the API call to ensure it's saved
+      // even if the user navigates away immediately
+      setActiveNumbers(prev => {
+        const updatedNumbers = prev.map(item => {
+          if (item.activationId === activationId) {
+            return { ...item, pollCount: item.pollCount + 1 };
+          }
+          return item;
+        });
+        
+        // Update localStorage with latest poll count IMMEDIATELY
+        // This ensures the count is saved even if user navigates away during API call
+        localStorage.setItem('activeNumbers', JSON.stringify(updatedNumbers));
+        
+        return updatedNumbers;
+      });
       
       const response = await fetch(`/api/sms/check?id=${activationId}`);
       
       // If the request failed, increment error count
       if (!response.ok) {
-        setActiveNumbers(prev => prev.map(item => {
-          if (item.activationId === activationId) {
-            return { ...item, errorCount: item.errorCount + 1 };
+        setActiveNumbers(prev => {
+          const updatedNumbers = prev.map(item => {
+            if (item.activationId === activationId) {
+              const newErrorCount = item.errorCount + 1;
+              
+              // If too many consecutive errors, stop polling
+              if (newErrorCount >= MAX_CONSECUTIVE_ERRORS) {
+                console.error(`Too many errors (${newErrorCount}) checking SMS code for ${activationId}, stopping polling`);
+                
+                // Clear interval
+                if (pollingIntervals.current[activationId]) {
+                  clearInterval(pollingIntervals.current[activationId] as NodeJS.Timeout);
+                  pollingIntervals.current[activationId] = null;
+                }
+                
+                toast.error("SMS polling stopped due to errors", {
+                  description: "Please refresh the page to restart polling"
+                });
+                
+                return { 
+                  ...item, 
+                  errorCount: newErrorCount,
+                  isPolling: false
+                };
+              }
+              
+              return { ...item, errorCount: newErrorCount };
+            }
+            return item;
+          });
+          
+          // Update localStorage with latest error count
+          localStorage.setItem('activeNumbers', JSON.stringify(updatedNumbers));
+          
+          return updatedNumbers;
+        });
+        
+        // If 404, the activation might have been deleted on the server
+        if (response.status === 404) {
+          console.error(`Activation not found on server: ${activationId}`);
+          
+          // Clear interval
+          if (pollingIntervals.current[activationId]) {
+            clearInterval(pollingIntervals.current[activationId] as NodeJS.Timeout);
+            pollingIntervals.current[activationId] = null;
           }
-          return item;
-        }));
+          
+          toast.error("Activation not found", {
+            description: "The number may have expired or been cancelled"
+          });
+        }
+        
         return;
       }
       
       const data = await response.json();
       
       // Update active numbers with new data
-      setActiveNumbers(prev => prev.map(item => {
-        if (item.activationId === activationId) {
-          const updatedItem = { ...item };
-          
-          // If we received a code
-          if (data.status === 'success' && data.code) {
-            // Show a success toast with the code
-            toast.success('SMS Code Received!', {
-              description: `Code: ${data.code}`,
-              duration: 5000
-            });
-            
-            // Update state with code and stop polling
-            return {
-              ...updatedItem,
-              smsCode: data.code,
-              isPolling: false,
-              smsStatus: 'success'
+      setActiveNumbers(prev => {
+        const updatedNumbers = prev.map(item => {
+          if (item.activationId === activationId) {
+            const updatedItem = { 
+              ...item,
+              // Reset error count on successful response
+              errorCount: 0,
+              // Update status from response
+              smsStatus: data.status || item.smsStatus
             };
-          }
-          
-          // If the activation was cancelled, stop polling
-          if (data.status === 'cancelled') {
-            // Clear polling interval
-            if (pollingIntervals.current[activationId]) {
-              clearInterval(pollingIntervals.current[activationId] as NodeJS.Timeout);
-              pollingIntervals.current[activationId] = null;
+            
+            // If we received a code
+            if (data.status === 'success' && data.code) {
+              // Show a success toast with the code
+              toast.success('SMS Code Received!', {
+                description: `Code: ${data.code}`,
+                duration: 5000
+              });
+              
+              // Clear polling interval
+              if (pollingIntervals.current[activationId]) {
+                clearInterval(pollingIntervals.current[activationId] as NodeJS.Timeout);
+                pollingIntervals.current[activationId] = null;
+              }
+              
+              // Update state with code and stop polling
+              return {
+                ...updatedItem,
+                smsCode: data.code,
+                isPolling: false,
+                smsStatus: 'success'
+              };
             }
             
-            return {
-              ...updatedItem,
-              isPolling: false,
-              smsStatus: 'cancelled'
-            };
+            // If the activation was cancelled, stop polling
+            if (data.status === 'cancelled') {
+              // Clear polling interval
+              if (pollingIntervals.current[activationId]) {
+                clearInterval(pollingIntervals.current[activationId] as NodeJS.Timeout);
+                pollingIntervals.current[activationId] = null;
+              }
+              
+              return {
+                ...updatedItem,
+                isPolling: false,
+                smsStatus: 'cancelled'
+              };
+            }
+            
+            return updatedItem;
           }
-          
-          return updatedItem;
-        }
-        return item;
-      }));
-      
-      // Update localStorage
-      localStorage.setItem('activeNumbers', JSON.stringify(activeNumbers));
+          return item;
+        });
+        
+        // Update localStorage with the latest state
+        localStorage.setItem('activeNumbers', JSON.stringify(updatedNumbers));
+        
+        return updatedNumbers;
+      });
       
     } catch (error) {
       console.error('Error checking SMS code:', error);
       
       // Update error count
-      setActiveNumbers(prev => prev.map(item => {
-        if (item.activationId === activationId) {
-          return { ...item, errorCount: item.errorCount + 1 };
-        }
-        return item;
-      }));
+      setActiveNumbers(prev => {
+        const updatedNumbers = prev.map(item => {
+          if (item.activationId === activationId) {
+            const newErrorCount = item.errorCount + 1;
+            
+            // If too many consecutive errors, stop polling
+            if (newErrorCount >= MAX_CONSECUTIVE_ERRORS) {
+              console.error(`Too many errors (${newErrorCount}) checking SMS code for ${activationId}, stopping polling`);
+              
+              // Clear interval
+              if (pollingIntervals.current[activationId]) {
+                clearInterval(pollingIntervals.current[activationId] as NodeJS.Timeout);
+                pollingIntervals.current[activationId] = null;
+              }
+              
+              return { 
+                ...item, 
+                errorCount: newErrorCount,
+                isPolling: false
+              };
+            }
+            
+            return { ...item, errorCount: newErrorCount };
+          }
+          return item;
+        });
+        
+        // Update localStorage with latest error count
+        localStorage.setItem('activeNumbers', JSON.stringify(updatedNumbers));
+        
+        return updatedNumbers;
+      });
     }
   }, [activeNumbers]);
+
+  // Store the checkSmsCode function in a ref to avoid dependency cycles
+  const checkSmsCodeRef = React.useRef(checkSmsCode);
+  useEffect(() => {
+    checkSmsCodeRef.current = checkSmsCode;
+  }, [checkSmsCode]);
+
+  // Function to start polling for a specific activation
+  const startPolling = useCallback((activationId: string) => {
+    // Clear any existing interval
+    if (pollingIntervals.current[activationId]) {
+      clearInterval(pollingIntervals.current[activationId] as NodeJS.Timeout);
+      pollingIntervals.current[activationId] = null;
+    }
+    
+    // Set the activation to polling state but preserve all existing state
+    setActiveNumbers(prev => {
+      const updatedNumbers = prev.map(item => {
+        if (item.activationId === activationId) {
+          return { 
+            ...item, 
+            isPolling: true,
+            // If we're restarting polling and had errors before, reset them
+            errorCount: 0,
+            // Keep existing poll count
+            pollCount: item.pollCount || 0
+          };
+        }
+        return item;
+      });
+      
+      // Store updated state in localStorage
+      localStorage.setItem('activeNumbers', JSON.stringify(updatedNumbers));
+      
+      return updatedNumbers;
+    });
+    
+    // Initial check - use a slight delay to avoid immediate call that might fail
+    setTimeout(() => {
+      checkSmsCodeRef.current(activationId);
+    }, 200);
+    
+    // Set up interval for subsequent checks
+    pollingIntervals.current[activationId] = setInterval(() => {
+      checkSmsCodeRef.current(activationId);
+    }, POLLING_INTERVAL);
+  }, []);
+
+  // Now place the restoration effect after all function declarations
+  // Function to restore polling when component mounts or page is revisited
+  useEffect(() => {
+    // Restore active numbers from localStorage when component mounts
+    const savedNumbers = localStorage.getItem('activeNumbers');
+    if (savedNumbers) {
+      try {
+        const parsedNumbers = JSON.parse(savedNumbers);
+        if (Array.isArray(parsedNumbers) && parsedNumbers.length > 0) {
+          // Convert activation time strings back to Date objects
+          const processedNumbers = parsedNumbers.map(number => ({
+            ...number,
+            activationTime: number.activationTime ? new Date(number.activationTime) : null
+          }));
+          
+          // Update the active numbers state
+          setActiveNumbers(processedNumbers);
+          
+          // Restart polling for any numbers that should be polling
+          processedNumbers.forEach(number => {
+            if (number.isPolling && !number.smsCode) {
+              // If this number should be polling, start it
+              startPolling(number.activationId);
+            }
+            
+            // If cancellation is not available yet, restart countdown
+            if (!number.cancelAvailable && number.remainingSeconds > 0) {
+              startCountdown(number.activationId, number.remainingSeconds);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error parsing saved active numbers:', error);
+      }
+    }
+    
+    // Cleanup polling intervals when unmounting
+    return () => {
+      Object.keys(pollingIntervals.current).forEach(key => {
+        if (pollingIntervals.current[key]) {
+          clearInterval(pollingIntervals.current[key] as NodeJS.Timeout);
+          pollingIntervals.current[key] = null;
+        }
+      });
+    };
+  }, [startPolling, startCountdown]);
 
   // Function to get a new phone number
   const getPhoneNumber = async () => {
