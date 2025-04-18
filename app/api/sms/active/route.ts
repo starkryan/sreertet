@@ -26,32 +26,30 @@ export async function GET(request: NextRequest) {
     // Get or create user in Supabase
     const { id: supabaseUserId } = await getOrCreateUser(userId, primaryEmail);
 
-    // Get the most recent active phone activation
+    // Get all active phone activations for the user
     const { data: activationData, error: activationError } = await supabase
       .from('phone_activations')
       .select('*')
       .eq('user_id', supabaseUserId)
       .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      .order('created_at', { ascending: false });
 
     if (activationError) {
       if (activationError.code === 'PGRST116') {
         // No active activation found (single row error)
         return NextResponse.json({ 
           success: true, 
-          activation: null 
+          activations: [] 
         });
       }
       
       console.error('Error fetching activation:', activationError);
-      return NextResponse.json({ error: 'Failed to fetch active number' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to fetch active numbers' }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      activation: activationData
+      activations: activationData || []
     });
   } catch (error) {
     console.error('Error fetching active phone number:', error);

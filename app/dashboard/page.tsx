@@ -508,38 +508,31 @@ export default function DashboardPage() {
         if (savedNumbers) {
           try {
             const parsedNumbers = JSON.parse(savedNumbers);
-            
             if (Array.isArray(parsedNumbers) && parsedNumbers.length > 0) {
               restoredNumbers = parsedNumbers.map((number: any) => {
                 // Ensure activationTime is a Date object
                 const activationTime = number.activationTime 
                   ? new Date(number.activationTime) 
                   : new Date();
-                  
-                // Recalculate cancel availability and remaining time
+                // Always recalculate cancel availability and remaining time
                 const now = new Date();
                 const elapsedMs = now.getTime() - activationTime.getTime();
                 const twoMinutesMs = 2 * 60 * 1000;
                 const cancelAvailable = elapsedMs >= twoMinutesMs;
                 const remainingSecs = Math.max(0, Math.ceil((twoMinutesMs - elapsedMs) / 1000));
-                
-                // Important: preserve the poll count from localStorage
                 return {
                   ...number,
                   activationTime,
                   cancelAvailable,
-                  remainingSeconds: remainingSecs,
+                  remainingSeconds: remainingSecs, // always recalc
                   pollCount: number.pollCount || 0,
                   errorCount: number.errorCount || 0
                 };
               });
-              
-              // Set active numbers from localStorage
               setActiveNumbers(restoredNumbers);
             }
           } catch (error) {
             console.error('Error parsing saved activation data:', error);
-            // Don't clear localStorage yet, we'll try to fetch from API first
           }
         }
         
@@ -554,25 +547,19 @@ export default function DashboardPage() {
             : (activeData.activation ? [activeData.activation] : []);
             
           if (activations.length > 0) {
-            // Create active number entries for each activation
             const numbersData = activations.map((activation: any) => {
               const activationTime = activation.created_at 
                 ? new Date(activation.created_at) 
                 : new Date();
-                
-              // Calculate if cancel is available and remaining seconds
+              // Always recalculate cancel availability and remaining seconds
               const now = new Date();
               const elapsedMs = now.getTime() - activationTime.getTime();
               const twoMinutesMs = 2 * 60 * 1000;
               const cancelAvailable = elapsedMs >= twoMinutesMs;
               const remainingSecs = Math.max(0, Math.ceil((twoMinutesMs - elapsedMs) / 1000));
-              
-              // Find if we have this activation in our restoredNumbers to preserve poll count
               const existingNumber = restoredNumbers.find(
                 num => num.activationId === activation.activation_id
               );
-              
-              // Create the active number entry
               return {
                 phoneNumber: activation.phone_number,
                 activationId: activation.activation_id,
@@ -580,19 +567,14 @@ export default function DashboardPage() {
                 activationTime: activationTime,
                 smsCode: activation.sms_code || '',
                 isPolling: !activation.sms_code,
-                // If we have this number in localStorage, preserve poll count
                 pollCount: existingNumber ? existingNumber.pollCount : 0,
                 smsStatus: 'waiting',
                 cancelAvailable,
-                remainingSeconds: remainingSecs,
+                remainingSeconds: remainingSecs, // always recalc
                 errorCount: existingNumber ? existingNumber.errorCount : 0
               };
             });
-            
-            // Set all active numbers
             setActiveNumbers(numbersData);
-            
-            // Store data in localStorage
             localStorage.setItem('activeNumbers', JSON.stringify(numbersData));
           } else if (restoredNumbers.length === 0) {
             // If no activations from API and nothing in localStorage, clear

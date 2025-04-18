@@ -24,6 +24,14 @@ const SERVICE_PRICES = {
   'us': 20
 };
 
+const REAL_SERVICE_PRICES = {
+  'sixer': 23,
+
+}
+
+// const REALOTP_API_KEY = process.env.REALOTP_SMSAPI_KEY || '';
+// const REALOTP_API_URL = process.env.REALOTP_SMS_API_URL || '';
+
 export async function GET(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
