@@ -27,14 +27,14 @@ const variants = ['default', 'circle', 'pinwheel', 'circle-filled', 'ellipsis', 
 const serviceOptions = [
   { 
     value: 'go', 
-    price: 25,
+    price: 20,
     label: (
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-2">
           <FcGoogle className="h-4 w-4" />
           <span>Google, Gmail, Youtube</span>
         </div>
-        <span className="text-sm font-medium text-green-600 ml-8">₹25</span>
+        <span className="text-sm font-medium text-green-600 ml-8">₹20</span>
       </div>
     ),
     icon: <FcGoogle className="h-5 w-5" />,
@@ -57,7 +57,7 @@ const serviceOptions = [
   },
   { 
     value: 'wa', 
-    price: 100,
+    price: 120,
     label: (
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-2">
@@ -117,14 +117,14 @@ const serviceOptions = [
   },
   { 
     value: 'wmh', 
-    price: 21,
+    price: 16,
     label: (
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-2">
           <FaQuestion className="h-4 w-4 text-orange-500" />
           <span>Winmatch</span>
         </div>
-        <span className="text-sm font-medium text-green-600 ml-8">₹21</span>
+        <span className="text-sm font-medium text-green-600 ml-8">₹16</span>
       </div>  
     ),
     icon: <FaQuestion className="h-5 w-5 text-orange-500" />,
