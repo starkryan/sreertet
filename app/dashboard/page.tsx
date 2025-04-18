@@ -1120,7 +1120,11 @@ export default function DashboardPage() {
 
   // Handle copy functionality
   const handleCopy = (text: string, type: string, activationId: string) => {
-    navigator.clipboard.writeText(text)
+    let copyText = text;
+    if (type === 'number' && text.startsWith('91') && text.length === 12) {
+      copyText = text.slice(2); // Remove leading '91' for 12-digit numbers
+    }
+    navigator.clipboard.writeText(copyText)
       .then(() => {
         toast.success("Copied to clipboard");
       })
