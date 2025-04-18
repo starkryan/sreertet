@@ -146,12 +146,13 @@ export async function GET(request: NextRequest) {
     if (typeof data === 'string' && data.startsWith('STATUS_OK:')) {
       const code = data.split(':')[1];
       
-      // Update the database with the received code
+      // Update the database with the received code and set is_active to false
       await supabase
         .from('phone_activations')
         .update({
           sms_code: code,
           status: 'completed',
+          is_active: false,
           updated_at: new Date().toISOString()
         })
         .eq('activation_id', activationId)

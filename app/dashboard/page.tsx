@@ -9,6 +9,7 @@ import { FaAmazon } from "react-icons/fa";
 import { SiSwiggy } from "react-icons/si";
 import { FaQuestion } from "react-icons/fa";
 import { Check, Copy, PhoneIcon } from "lucide-react";
+import { useUser } from '@clerk/nextjs';
 
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -386,6 +387,8 @@ const PhoneNumberCard = ({
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { user } = useUser();
+  const userId = user?.id;
   const [selectedService, setSelectedService] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -503,18 +506,23 @@ export default function DashboardPage() {
         
         // First, restore numbers from localStorage to ensure persistence between page navigations
         const savedNumbers = localStorage.getItem('activeNumbers');
+        const savedUserId = localStorage.getItem('activeNumbersUserId');
         let restoredNumbers: ActiveNumber[] = [];
-        
-        if (savedNumbers) {
+
+        // If the stored userId does not match the current user, clear localStorage
+        if (savedUserId && userId && savedUserId !== userId) {
+          localStorage.removeItem('activeNumbers');
+          localStorage.removeItem('activeNumbersUserId');
+        }
+
+        if (savedNumbers && savedUserId === userId) {
           try {
             const parsedNumbers = JSON.parse(savedNumbers);
             if (Array.isArray(parsedNumbers) && parsedNumbers.length > 0) {
               restoredNumbers = parsedNumbers.map((number: any) => {
-                // Ensure activationTime is a Date object
                 const activationTime = number.activationTime 
                   ? new Date(number.activationTime) 
                   : new Date();
-                // Always recalculate cancel availability and remaining time
                 const now = new Date();
                 const elapsedMs = now.getTime() - activationTime.getTime();
                 const twoMinutesMs = 2 * 60 * 1000;
@@ -576,6 +584,7 @@ export default function DashboardPage() {
             });
             setActiveNumbers(numbersData);
             localStorage.setItem('activeNumbers', JSON.stringify(numbersData));
+            if (userId) localStorage.setItem('activeNumbersUserId', userId);
           } else if (restoredNumbers.length === 0) {
             // If no activations from API and nothing in localStorage, clear
             localStorage.removeItem('activeNumbers');
@@ -604,7 +613,7 @@ export default function DashboardPage() {
     };
 
     checkAuth();
-  }, [router, startCountdown]);
+  }, [router, startCountdown, userId]);
 
   // Function to check SMS code for a specific activation
   const checkSmsCode = useCallback(async (activationId: string) => {
@@ -955,13 +964,15 @@ export default function DashboardPage() {
       
       // Update localStorage
       localStorage.setItem('activeNumbers', JSON.stringify([newNumber, ...activeNumbers]));
+      if (userId) localStorage.setItem('activeNumbersUserId', userId);
       
       // Update balance
       setBalance(prevBalance => prevBalance - selectedServicePrice);
       
       // Show success toast with more detailed information
+      const serviceDisplayName = serviceOptions.find((option) => option.value === selectedService)?.displayName || selectedService;
       toast.success(`Phone number received`, {
-        description: `Number: ${data.phoneNumber} for ${serviceOptions.find((option) => option.value === selectedService)?.label?.toString() || 'service'}`
+        description: `Number: ${data.phoneNumber} for ${serviceDisplayName}`
       });
     } catch (error) {
       console.error('Error:', error);
