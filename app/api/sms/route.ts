@@ -11,16 +11,17 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Service price mapping
 const SERVICE_PRICES = {
-  'go': 25,
+  'go': 20,
   'tg': 50,
-  'wa': 100,
+  'wa': 120,
   'ig': 12,
   'jx': 22,
   'am': 20,
-  'wmh': 21,
+  'wmh': 16,
   'sn': 24,
   'zpt': 25,
-  've': 26
+  've': 26,
+  'us': 20
 };
 
 export async function GET(request: NextRequest) {

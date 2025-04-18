@@ -1,5 +1,9 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { checkRole } from '@/utils/roles'
+
+const isAdminRoute = createRouteMatcher(['/admin(.*)'])
+
 
 // Define routes that require authentication
 const isProtectedRoute = createRouteMatcher([
@@ -33,7 +37,26 @@ export default clerkMiddleware(async (auth, req) => {
         return NextResponse.redirect(signInUrl);
       }
     }
-    
+    // Protect all routes starting with `/admin`
+    if (isAdminRoute(req)) {
+      // First, check if user is authenticated
+      let session;
+      try {
+        session = await auth();
+      } catch (e) {
+        // Not authenticated, redirect to sign-in
+        const signInUrl = new URL('/sign-in', req.url);
+        signInUrl.searchParams.set('redirect_url', req.nextUrl.pathname);
+        return NextResponse.redirect(signInUrl);
+      }
+      // Debug: Log session claims for troubleshooting
+      console.log('Session Claims for /admin:', session?.sessionClaims);
+      // Now check if user is admin
+      if (session?.sessionClaims?.metadata?.role !== 'admin') {
+        const url = new URL('/', req.url);
+        return NextResponse.redirect(url);
+      }
+    }
     // For auth pages (sign-in, sign-up) or home page, check if user is authenticated
     // If authenticated, redirect to dashboard
     if (isAuthPage(req) || req.nextUrl.pathname === '/') {

@@ -174,7 +174,23 @@ const serviceOptions = [
     ),
     icon: <FaQuestion className="h-5 w-5 text-orange-500" />,
     displayName: "Dream11"
+  },
+  {
+    value: 'us',
+    price: 20,
+    label: (
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <FaQuestion className="h-4 w-4 text-orange-500" />
+          <span>IRCTC</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹20</span>
+        </div>
+        ),
+        icon: <FaQuestion className="h-5 w-5 text-orange-500" />,
+        displayName: "IRCTC"
   }
+
 ];
 
 // Polling interval in milliseconds
