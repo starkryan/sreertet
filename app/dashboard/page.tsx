@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation';
 import { FcGoogle } from "react-icons/fc";
-import { FaInstagram, FaTelegramPlane } from "react-icons/fa";
+import { FaFacebook, FaInstagram, FaTelegramPlane } from "react-icons/fa";
 import { FaWhatsapp } from "react-icons/fa";
 import { FaAmazon } from "react-icons/fa";
 import { SiSwiggy } from "react-icons/si";
@@ -13,12 +13,6 @@ import { useUser } from '@clerk/nextjs';
 
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-  InputOTPSeparator
-} from "@/components/ui/input-otp";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 const variants = ['default', 'circle', 'pinwheel', 'circle-filled', 'ellipsis', 'ring', 'bars', 'infinite'];
@@ -70,6 +64,21 @@ const serviceOptions = [
     ),
     icon: <FaWhatsapp className="h-5 w-5 text-green-500" />,
     displayName: "WhatsApp"
+  },
+  { 
+    value: 'fb', 
+    price: 11,
+    label: (
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <FaFacebook className="h-4 w-4 text-blue-500" />
+          <span>Facebook</span>
+        </div>
+        <span className="text-sm font-medium text-green-600 ml-8">₹11</span>
+      </div>
+    ),
+    icon: <FaFacebook className="h-5 w-5 text-blue-500" />,
+    displayName: "Facebook"
   },
   { 
     value: 'ig', 

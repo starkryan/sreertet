@@ -21,7 +21,8 @@ const SERVICE_PRICES = {
   'sn': 24,
   'zpt': 25,
   've': 26,
-  'us': 20
+  'us': 20,
+  'fb': 11
 };
 
 const REAL_SERVICE_PRICES = {
