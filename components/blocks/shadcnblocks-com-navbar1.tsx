@@ -9,7 +9,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useAuth } from "@clerk/nextjs";
 
 interface MenuItem {
   title: string;
@@ -53,6 +53,33 @@ const Navbar1 = ({
   },
 }: Navbar1Props) => {
   const [scrolled, setScrolled] = useState(false);
+  const { isSignedIn, sessionId, isLoaded } = useAuth();
+  // State to track if user can access admin (based on database check)
+  const [canAccessAdmin, setCanAccessAdmin] = useState(false);
+
+  // Check if user is admin when component mounts
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      if (isSignedIn) {
+        try {
+          // Simple client-side check to see if admin page returns 200 or redirect
+          const response = await fetch('/api/admin/check-admin', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          
+          setCanAccessAdmin(response.ok);
+        } catch (error) {
+          console.error('Error checking admin access:', error);
+          setCanAccessAdmin(false);
+        }
+      }
+    };
+    
+    if (isLoaded && isSignedIn) {
+      checkAdminAccess();
+    }
+  }, [isLoaded, isSignedIn, sessionId]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -93,6 +120,19 @@ const Navbar1 = ({
                 >
                   Dashboard
                 </a>
+                
+                {/* Show Admin link only to admin users */}
+                {canAccessAdmin && (
+                  <>
+                    <a
+                      href="/admin"
+                      className="text-primary hover:text-primary/80 transition-colors text-sm font-medium"
+                    >
+                      Admin
+                    </a>
+                  
+                  </>
+                )}
               </SignedIn>
             </div>
           </div>
@@ -159,6 +199,19 @@ const Navbar1 = ({
                       >
                         Dashboard
                       </a>
+                      
+                      {/* Show Admin links in mobile menu too */}
+                      {canAccessAdmin && (
+                        <>
+                          <a
+                            href="/admin"
+                            className="py-2 font-semibold text-primary hover:text-primary/80 transition-colors"
+                          >
+                            Admin Panel
+                          </a>
+                      
+                        </>
+                      )}
                     </SignedIn>
                     <div className="flex flex-col gap-3">
                       <SignedOut>
