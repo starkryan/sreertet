@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { MoveRight, PhoneCall } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
+import Link from "next/link";
+import { SignUpButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, UserButton   } from "@clerk/nextjs";
 function Hero() {
   const [titleNumber, setTitleNumber] = useState(0);
   const titles = useMemo(
@@ -68,12 +70,21 @@ function Hero() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full justify-center items-center">
-            <Button size="lg" className="gap-2 sm:gap-4 w-full sm:w-auto" variant="outline">
-              Jump on a call <PhoneCall className="w-3 h-3 sm:w-4 sm:h-4" />
-            </Button>
-            <Button size="lg" className="gap-2 sm:gap-4 w-full sm:w-auto">
-              Sign up here <MoveRight className="w-3 h-3 sm:w-4 sm:h-4" />
-            </Button>
+            <SignedOut>
+              <Button asChild size="lg" className="gap-2 sm:gap-4 w-full sm:w-auto">
+                <SignUpButton>
+                  <span className="flex items-center gap-2">
+                    Get Started <MoveRight className="w-3 h-3 sm:w-4 sm:h-4" />
+                  </span>
+                </SignUpButton>
+              </Button>
+            </SignedOut>
+
+            <SignedIn>
+            
+              <UserButton />
+            </SignedIn>
+           
           </div>
         </div>
       </div>
