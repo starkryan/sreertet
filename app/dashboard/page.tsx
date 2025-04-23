@@ -1161,6 +1161,7 @@ export default function DashboardPage() {
         
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-4">
           <p className="text-sm sm:text-base">Your Balance: <span className="font-medium">{balance} ₹</span></p>
+        <a className='text-red-400 font-bold border-2' href="/dashboard/recharge"> Recharge</a>
           
           {activeNumbersCount > 0 && (
             <div className="text-xs sm:text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded-md mt-1 sm:mt-0">
